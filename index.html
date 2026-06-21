@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Odemeler">
+<meta name="apple-mobile-web-app-title" content="Ödemeler">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#007aff">
 <link rel="manifest" href="manifest.json">
@@ -113,7 +113,7 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
 
 <div class="header">
   <div class="header-row">
-    <div class="header-title">Odemeler</div>
+    <div class="header-title">Ödemeler</div>
     <button type="button" id="btnOpenAdd" class="btn-add">+ Ekle</button>
   </div>
   <div class="month-nav">
@@ -130,64 +130,64 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
 <div class="summary" id="summary"></div>
 
 <div class="tabs">
-  <button type="button" class="tab active" data-filter="all">Tumu</button>
+  <button type="button" class="tab active" data-filter="all"Tümü/button>
   <button type="button" class="tab" data-filter="urgent">Acil</button>
   <button type="button" class="tab" data-filter="unpaid">Bekleyen</button>
-  <button type="button" class="tab" data-filter="paid">Odendi</button>
+  <button type="button" class="tab" data-filter="paid">Ödendi</button>
 </div>
 
 <div class="list" id="list"></div>
-<button type="button" id="resetBtn" class="reset-btn" style="display:none">Bu Ayi Sifirla</button>
+<button type="button" id="resetBtn" class="reset-btn" style="display:none">Bu Ayı Sıfırla</button>
 
 <div class="overlay" id="addOv">
   <div class="modal">
     <div class="modal-title">Yeni Odeme <button type="button" id="btnCloseAdd" class="modal-close">X</button></div>
     <div class="type-toggle">
-      <button type="button" id="addBtnD" class="type-btn active">Duzenli</button>
+      <button type="button" id="addBtnD" class="type-btn active"Düzenli/button>
       <button type="button" id="addBtnT" class="type-btn">Tek Seferlik</button>
     </div>
     <div class="field">
-      <label>Odeme Adi</label>
+      <label>Ödeme Adı</label>
       <input type="text" id="addName" placeholder="Ornek: Kira, Kredi Karti...">
     </div>
     <div class="field-row">
       <div class="field">
         <label>Tutar (TL)</label>
-        <input type="number" id="addAmt" placeholder="Opsiyonel" inputmode="decimal">
+        <input type="number" id="addAmt" placeholder="İsteğe Bağlı" inputmode="decimal">
       </div>
       <div class="field">
         <label>Kategori</label>
         <select id="addCat">
-          <option value="kira">Kira</option>
-          <option value="aidat">Aidat</option>
-          <option value="okul">Okul</option>
-          <option value="kredi">Kredi Karti</option>
-          <option value="fatura">Fatura</option>
-          <option value="abonelik">Abonelik</option>
-          <option value="diger">Diger</option>
+          <option value="kira">🏠 Kira</option>
+          <option value="aidat">🏢 Aidat</option>
+          <option value="okul">🎓 Okul</option>
+          <option value="kredi">💳 Kredi Kartı</option>
+          <option value="fatura">📄 Fatura</option>
+          <option value="abonelik">📱 Abonelik</option>
+          <option value="diger">📌 Diğer</option>
         </select>
       </div>
     </div>
     <div id="addDuzenli">
       <div class="field">
-        <label>Her Ayin Kacinda?</label>
+        <label>Her Ayın Kaçında?</label>
         <input type="number" id="addDay" min="1" max="31" placeholder="1-31" inputmode="numeric">
       </div>
       <div class="field">
         <label>Hangi Aylar?</label>
-        <div class="month-hint">Surekli = her ay | Diger kutular = sadece o aylar</div>
+        <div class="month-hint">Sürekli = her ay | Diğer kutular = sadece o aylar</div>
         <div class="month-grid" id="addGrid"></div>
       </div>
     </div>
     <div id="addTek" style="display:none">
       <div class="field">
-        <label>Odeme Tarihi</label>
+        <label>Ödeme Tarihi</label>
         <input type="date" id="addDate">
       </div>
     </div>
     <div class="field">
-      <label>Not (Opsiyonel)</label>
-      <input type="text" id="addNote" placeholder="Ornek: Ekstre belli olunca guncelle">
+      <label>Not (İsteğe Bağlı)</label>
+      <input type="text" id="addNote" placeholder="Örn: Ekstre belli olunca güncelle">
     </div>
     <button type="button" id="btnSaveAdd" class="btn-save">Kaydet</button>
   </div>
@@ -198,11 +198,11 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
     <div class="modal-title">Duzenle <button type="button" id="btnCloseEdit" class="modal-close">X</button></div>
     <input type="hidden" id="editId">
     <div class="type-toggle">
-      <button type="button" id="editBtnD" class="type-btn active">Duzenli</button>
+      <button type="button" id="editBtnD" class="type-btn active"Düzenli/button>
       <button type="button" id="editBtnT" class="type-btn">Tek Seferlik</button>
     </div>
     <div class="field">
-      <label>Odeme Adi</label>
+      <label>Ödeme Adı</label>
       <input type="text" id="editName">
     </div>
     <div class="field-row">
@@ -213,38 +213,38 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
       <div class="field">
         <label>Kategori</label>
         <select id="editCat">
-          <option value="kira">Kira</option>
-          <option value="aidat">Aidat</option>
-          <option value="okul">Okul</option>
-          <option value="kredi">Kredi Karti</option>
-          <option value="fatura">Fatura</option>
-          <option value="abonelik">Abonelik</option>
-          <option value="diger">Diger</option>
+          <option value="kira">🏠 Kira</option>
+          <option value="aidat">🏢 Aidat</option>
+          <option value="okul">🎓 Okul</option>
+          <option value="kredi">💳 Kredi Kartı</option>
+          <option value="fatura">📄 Fatura</option>
+          <option value="abonelik">📱 Abonelik</option>
+          <option value="diger">📌 Diğer</option>
         </select>
       </div>
     </div>
     <div id="editDuzenli">
       <div class="field">
-        <label>Her Ayin Kacinda?</label>
+        <label>Her Ayın Kaçında?</label>
         <input type="number" id="editDay" min="1" max="31" inputmode="numeric">
       </div>
       <div class="field">
         <label>Hangi Aylar?</label>
-        <div class="month-hint">Surekli = her ay | Diger kutular = sadece o aylar</div>
+        <div class="month-hint">Sürekli = her ay | Diğer kutular = sadece o aylar</div>
         <div class="month-grid" id="editGrid"></div>
       </div>
     </div>
     <div id="editTek" style="display:none">
       <div class="field">
-        <label>Odeme Tarihi</label>
+        <label>Ödeme Tarihi</label>
         <input type="date" id="editDate">
       </div>
     </div>
     <div class="field">
-      <label>Not (Opsiyonel)</label>
+      <label>Not (İsteğe Bağlı)</label>
       <input type="text" id="editNote">
     </div>
-    <button type="button" id="btnSaveEdit" class="btn-save">Guncelle</button>
+    <button type="button" id="btnSaveEdit" class="btn-save">Güncelle</button>
   </div>
 </div>
 
@@ -252,7 +252,7 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
   <div class="confirm-box">
     <div class="confirm-msg" id="confirmMsg"></div>
     <div class="confirm-actions">
-      <button type="button" id="confirmNo" class="confirm-btn confirm-cancel">Vazgec</button>
+      <button type="button" id="confirmNo" class="confirm-btn confirm-cancel">Vazgeç</button>
       <button type="button" id="confirmYes" class="confirm-btn confirm-ok">Sil</button>
     </div>
   </div>
@@ -262,10 +262,10 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
 
 <script>
 var EMJ = {kira:'🏠',aidat:'🏢',okul:'🎓',kredi:'💳',fatura:'📄',abonelik:'📱',diger:'📌'};
-var CNMS = {kira:'Kira',aidat:'Aidat',okul:'Okul',kredi:'Kredi Karti',fatura:'Fatura',abonelik:'Abonelik',diger:'Diger'};
+var CNMS = {kira:'Kira',aidat:'Aidat',okul:'Okul',kredi:'Kredi Kartı',fatura:'Fatura',abonelik:'Abonelik',diger:'Diğer'};
 var CCLR = {kira:'#007aff',aidat:'#34c759',okul:'#ff9500',kredi:'#ff3b30',fatura:'#af52de',abonelik:'#5ac8fa',diger:'#8e8e93'};
-var MO = ['Oca','Sub','Mar','Nis','May','Haz','Tem','Agu','Eyl','Eki','Kas','Ara'];
-var MOFULL = ['Ocak','Subat','Mart','Nisan','Mayis','Haziran','Temmuz','Agustos','Eylul','Ekim','Kasim','Aralik'];
+var MO = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+var MOFULL = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 var KEY = 'odeme-v8';
 
 var payments = [];
@@ -287,7 +287,7 @@ function load() {
 
 function persist() {
   try { localStorage.setItem(KEY, JSON.stringify(payments)); }
-  catch(e) { toast('Kaydetme hatasi'); }
+  catch(e) { toast('Kaydetme hatası'); }
 }
 
 function toast(msg) {
@@ -340,12 +340,12 @@ function metaTxt(p) {
     var d = new Date(p.date + 'T00:00:00');
     return d.getDate() + ' ' + MO[d.getMonth()] + ' ' + d.getFullYear();
   }
-  var ml = p.months === 'always' ? 'Surekli' : p.months.map(function(m) { return MO[m]; }).join(', ');
-  return 'Her ayin ' + p.dueDay + '. gunu - ' + ml;
+  var ml = p.months === 'always' ? 'Sürekli' : p.months.map(function(m) { return MO[m]; }).join(', ');
+  return 'Her ayın ' + p.dueDay + '. günü - ' + ml;
 }
 
 function blabel(s) {
-  var map = {gecikti:'Gecikti!',bugun:'Bugun!',yaklasiyor:'Yaklasıyor',gelecek:'Zamanında',odendi:'Odendi'};
+  var map = {gecikti:'Gecikti!',bugun:'Bugün!',yaklasiyor:'Yaklasıyor',gelecek:'Zamanında',odendi:'Ödendi'};
   return map[s] || '';
 }
 
@@ -390,7 +390,7 @@ function renderSummary() {
   if (total > 0) {
     html += '<div class="sum-total">' + fmt(total) + ' TL</div>';
     html += '<div class="sum-row">';
-    html += '<div class="sum-chip"><div class="sum-chip-val" style="color:var(--green)">' + fmt(paid) + ' TL</div><div class="sum-chip-lbl">Odendi</div></div>';
+    html += '<div class="sum-chip"><div class="sum-chip-val" style="color:var(--green)">' + fmt(paid) + ' TL</div><div class="sum-chip-lbl">Ödendi</div></div>';
     html += '<div class="sum-chip"><div class="sum-chip-val" style="color:var(--red)">' + fmt(unpaid) + ' TL</div><div class="sum-chip-lbl">Bekliyor</div></div>';
     html += '</div>';
     var catArr = Object.keys(cats).filter(function(c) { return cats[c] > 0; }).sort(function(a,b) { return cats[b] - cats[a]; });
@@ -426,15 +426,15 @@ function renderList() {
   else if (filt === 'paid') list = list.filter(function(p) { return getStatus(p,viewYear,viewMonth) === 'odendi'; });
   var el = document.getElementById('list');
   if (list.length === 0) {
-    el.innerHTML = '<div class="empty"><span class="emoji">' + (payments.length===0?'📋':'🔍') + '</span>' + (payments.length===0?'Odeme yok.<br>"+ Ekle" ile baslayin.':MOFULL[viewMonth]+' ayinda bu filtrede odeme yok.') + '</div>';
+    el.innerHTML = '<div class="empty"><span class="emoji">' + (payments.length===0?'📋':'🔍') + '</span>' + (payments.length===0?'Ödeme yok.<br>"+ Ekle" ile başlayın.':MOFULL[viewMonth]+' ayında bu filtrede ödeme yok.') + '</div>';
     return;
   }
   var html = '';
   list.forEach(function(p) {
     var s = getStatus(p, viewYear, viewMonth);
     var paid = isPaid(p, viewYear, viewMonth);
-    var amtTxt = p.amount ? ' - <strong>' + fmt(p.amount) + ' TL</strong>' : '';
-    var ttag = p.type === 'd' ? '<span class="type-tag tg-d">Duzenli</span>' : '<span class="type-tag tg-t">Tek Seferlik</span>';
+    var amtTxt = p.amount ? ' · <strong>' + fmt(p.amount) + ' TL</strong>' : '';
+    var ttag = p.type === 'd' ? '<span class="type-tag tg-d"Düzenli/span>' : '<span class="type-tag tg-t">Tek Seferlik</span>';
     var noteHtml = p.note ? '<div class="card-note">Not: ' + esc(p.note) + '</div>' : '';
     html += '<div class="card ' + (paid ? 'paid' : '') + ' ' + (paid ? '' : 's-' + s) + '" data-id="' + esc(p.id) + '">';
     html += '<span class="card-emoji">' + (EMJ[p.category] || '📌') + '</span>';
@@ -442,8 +442,8 @@ function renderList() {
     html += '<div class="card-meta">' + metaTxt(p) + amtTxt + '</div>' + noteHtml + '</div>';
     html += '<div class="card-right"><span class="badge b-' + s + '">' + blabel(s) + '</span>';
     html += '<div class="card-actions">';
-    html += '<button type="button" class="btn-paid" data-action="paid" data-id="' + esc(p.id) + '">' + (paid ? 'Geri Al' : 'Odendi') + '</button>';
-    html += '<button type="button" class="btn-edit" data-action="edit" data-id="' + esc(p.id) + '">Duzenle</button>';
+    html += '<button type="button" class="btn-paid" data-action="paid" data-id="' + esc(p.id) + '">' + (paid ? 'Geri Al' : 'Ödendi') + '</button>';
+    html += '<button type="button" class="btn-edit" data-action="edit" data-id="' + esc(p.id) + '">Düzenle</button>';
     html += '<button type="button" class="btn-del" data-action="del" data-id="' + esc(p.id) + '">Sil</button>';
     html += '</div></div></div>';
   });
@@ -454,7 +454,7 @@ function render() {
   var isNow = viewYear === new Date().getFullYear() && viewMonth === new Date().getMonth();
   document.getElementById('mMonth').textContent = MOFULL[viewMonth];
   document.getElementById('mYear').textContent = viewYear;
-  document.getElementById('mToday').textContent = isNow ? '' : 'Bugune don';
+  document.getElementById('mToday').textContent = isNow ? '' : 'Bugüne dön';
   renderSummary();
   renderList();
   var mp = monthPayments();
@@ -468,7 +468,7 @@ function buildGrid(gridId, selSet) {
   var ac = document.createElement('button');
   ac.type = 'button';
   ac.className = 'month-chip' + (selSet.has('always') ? ' always-sel' : '');
-  ac.textContent = 'Surekli';
+  ac.textContent = 'Sürekli';
   ac.setAttribute('data-val', 'always');
   g.appendChild(ac);
   MO.forEach(function(m, i) {
@@ -517,7 +517,7 @@ function closeAdd() { document.getElementById('addOv').classList.remove('open');
 
 function saveAdd() {
   var nm = document.getElementById('addName').value.trim();
-  if (!nm) { toast('Lutfen odeme adi girin'); return; }
+  if (!nm) { toast('Lütfen ödeme adı girin'); return; }
   var p = {
     id: 'p' + Date.now() + Math.random().toString(36).slice(2,6),
     name: nm,
@@ -529,20 +529,20 @@ function saveAdd() {
   };
   if (addType === 'd') {
     var day = parseInt(document.getElementById('addDay').value, 10);
-    if (isNaN(day) || day < 1 || day > 31) { toast('Gecerli bir gun girin (1-31)'); return; }
-    if (addSel.size === 0) { toast('En az bir ay secin veya Surekli isaretleyin'); return; }
+    if (isNaN(day) || day < 1 || day > 31) { toast('Geçerli bir gün girin (1-31)'); return; }
+    if (addSel.size === 0) { toast('En az bir ay seçin veya Sürekli işaretleyin'); return; }
     p.dueDay = day;
     p.months = addSel.has('always') ? 'always' : Array.from(addSel).sort(function(a,b) { return a-b; });
   } else {
     var dt = document.getElementById('addDate').value;
-    if (!dt) { toast('Lutfen tarih secin'); return; }
+    if (!dt) { toast('Lütfen tarih seçin'); return; }
     p.date = dt;
   }
   payments.push(p);
   persist();
   render();
   closeAdd();
-  toast('Odeme eklendi');
+  toast('Ödeme eklendi');
 }
 
 function openEdit(id) {
@@ -574,7 +574,7 @@ function closeEdit() { document.getElementById('editOv').classList.remove('open'
 function saveEdit() {
   var id = document.getElementById('editId').value;
   var nm = document.getElementById('editName').value.trim();
-  if (!nm) { toast('Lutfen odeme adi girin'); return; }
+  if (!nm) { toast('Lütfen ödeme adı girin'); return; }
   var idx = payments.findIndex(function(x) { return x.id === id; });
   if (idx === -1) return;
   var orig = payments[idx];
@@ -589,20 +589,20 @@ function saveEdit() {
   };
   if (editType === 'd') {
     var day = parseInt(document.getElementById('editDay').value, 10);
-    if (isNaN(day) || day < 1 || day > 31) { toast('Gecerli bir gun girin'); return; }
-    if (editSel.size === 0) { toast('En az bir ay secin'); return; }
+    if (isNaN(day) || day < 1 || day > 31) { toast('Geçerli bir gün girin'); return; }
+    if (editSel.size === 0) { toast('En az bir ay seçin'); return; }
     u.dueDay = day;
     u.months = editSel.has('always') ? 'always' : Array.from(editSel).sort(function(a,b) { return a-b; });
   } else {
     var dt = document.getElementById('editDate').value;
-    if (!dt) { toast('Lutfen tarih secin'); return; }
+    if (!dt) { toast('Lütfen tarih seçin'); return; }
     u.date = dt;
   }
   payments[idx] = u;
   persist();
   render();
   closeEdit();
-  toast('Odeme guncellendi');
+  toast('Ödeme güncellendi');
 }
 
 function togPaid(id) {
@@ -622,7 +622,7 @@ function delPayment(id) {
   if (payments.length < before) {
     persist();
     render();
-    toast('Odeme silindi');
+    toast('Ödeme silindi');
   }
 }
 
@@ -664,7 +664,7 @@ document.getElementById('mToday').addEventListener('click', function() {
 });
 
 document.getElementById('resetBtn').addEventListener('click', function() {
-  showConfirm(MOFULL[viewMonth] + ' ' + viewYear + ' ayi sifirlanacak. Devam?', 'Sifirla', function() {
+  showConfirm(MOFULL[viewMonth] + ' ' + viewYear + ' ayı sıfırlanacak. Devam?', 'Sıfırla', function() {
     payments = payments.map(function(p) {
       if (getStatus(p, viewYear, viewMonth) === null) return p;
       var u = Object.assign({}, p, {paidMonths: Object.assign({}, p.paidMonths || {})});
@@ -673,7 +673,7 @@ document.getElementById('resetBtn').addEventListener('click', function() {
     });
     persist();
     render();
-    toast('Ay sifirlandi');
+    toast('Ay sıfırlandı');
   });
 });
 
@@ -736,7 +736,7 @@ document.getElementById('list').addEventListener('click', function(e) {
   } else if (action === 'del') {
     var p = payments.find(function(x) { return x.id === id; });
     var nm = p ? p.name : 'Bu odeme';
-    showConfirm('"' + nm + '" silinecek. Geri alinmaz.', 'Sil', function() {
+    showConfirm('"' + nm + '" silinecek. Geri alınamaz.', 'Sil', function() {
       delPayment(id);
     });
   }
