@@ -1,0 +1,18 @@
+{
+  "name": "Ödeme Takip",
+  "short_name": "Ödemeler",
+  "description": "Aylık ödeme takip uygulaması",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f2f2f7",
+  "theme_color": "#007aff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
