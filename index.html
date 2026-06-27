@@ -107,6 +107,14 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
 .confirm-ok{background:var(--red);color:#fff;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1c1c1e;color:#fff;padding:12px 20px;border-radius:50px;font-size:13px;font-weight:700;z-index:400;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.rpt-btn{background:var(--card);color:var(--sub);border:1.5px solid var(--border);border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;}
+.rpt-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.rpt-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}
+.rpt-table th{background:var(--bg);padding:8px 6px;text-align:left;font-weight:800;font-size:11px;color:var(--sub);text-transform:uppercase;}
+.rpt-table td{padding:8px 6px;border-bottom:1px solid var(--border);font-weight:600;}
+.rpt-table tr:last-child td{border-bottom:none;}
+.rpt-card{background:var(--card);border-radius:14px;padding:14px 16px;margin-bottom:10px;}
+.rpt-card-title{font-size:12px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
 </style>
 </head>
 <body>
@@ -130,20 +138,23 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
 <div class="summary" id="summary"></div>
 
 <div class="tabs">
-  <button type="button" class="tab active" data-filter="all"Tümü/button>
+  <button type="button" class="tab active" data-filter="all">Tümü</button>
   <button type="button" class="tab" data-filter="urgent">Acil</button>
   <button type="button" class="tab" data-filter="unpaid">Bekleyen</button>
   <button type="button" class="tab" data-filter="paid">Ödendi</button>
+  <button type="button" class="tab" data-filter="report">📊 Rapor</button>
 </div>
+
+<div id="reportPanel" style="display:none;padding:10px 12px;"></div>
 
 <div class="list" id="list"></div>
 <button type="button" id="resetBtn" class="reset-btn" style="display:none">Bu Ayı Sıfırla</button>
 
 <div class="overlay" id="addOv">
   <div class="modal">
-    <div class="modal-title">Yeni Odeme <button type="button" id="btnCloseAdd" class="modal-close">X</button></div>
+    <div class="modal-title">Yeni Ödeme <button type="button" id="btnCloseAdd" class="modal-close">X</button></div>
     <div class="type-toggle">
-      <button type="button" id="addBtnD" class="type-btn active"Düzenli/button>
+      <button type="button" id="addBtnD" class="type-btn active">Düzenli</button>
       <button type="button" id="addBtnT" class="type-btn">Tek Seferlik</button>
     </div>
     <div class="field">
@@ -198,7 +209,7 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
     <div class="modal-title">Duzenle <button type="button" id="btnCloseEdit" class="modal-close">X</button></div>
     <input type="hidden" id="editId">
     <div class="type-toggle">
-      <button type="button" id="editBtnD" class="type-btn active"Düzenli/button>
+      <button type="button" id="editBtnD" class="type-btn active">Düzenli</button>
       <button type="button" id="editBtnT" class="type-btn">Tek Seferlik</button>
     </div>
     <div class="field">
@@ -434,7 +445,7 @@ function renderList() {
     var s = getStatus(p, viewYear, viewMonth);
     var paid = isPaid(p, viewYear, viewMonth);
     var amtTxt = p.amount ? ' · <strong>' + fmt(p.amount) + ' TL</strong>' : '';
-    var ttag = p.type === 'd' ? '<span class="type-tag tg-d"Düzenli/span>' : '<span class="type-tag tg-t">Tek Seferlik</span>';
+    var ttag = p.type === 'd' ? '<span class="type-tag tg-d">Düzenli</span>' : '<span class="type-tag tg-t">Tek Seferlik</span>';
     var noteHtml = p.note ? '<div class="card-note">Not: ' + esc(p.note) + '</div>' : '';
     html += '<div class="card ' + (paid ? 'paid' : '') + ' ' + (paid ? '' : 's-' + s) + '" data-id="' + esc(p.id) + '">';
     html += '<span class="card-emoji">' + (EMJ[p.category] || '📌') + '</span>';
@@ -508,7 +519,7 @@ function openAdd() {
   document.getElementById('addDay').value = '';
   document.getElementById('addAmt').value = '';
   document.getElementById('addNote').value = '';
-  document.getElementById('addDate').value = new Date(viewYear, viewMonth, 1).toISOString().split('T')[0];
+  document.getElementById('addDate').value = new Date().toISOString().split('T')[0];
   buildGrid('addGrid', addSel);
   document.getElementById('addOv').classList.add('open');
 }
@@ -747,9 +758,220 @@ document.querySelectorAll('.tab').forEach(function(tb) {
     filt = tb.getAttribute('data-filter');
     document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
     tb.classList.add('active');
-    render();
+    var isReport = filt === 'report';
+    document.getElementById('reportPanel').style.display = isReport ? 'block' : 'none';
+    document.getElementById('list').style.display = isReport ? 'none' : '';
+    document.getElementById('summary').style.display = isReport ? 'none' : '';
+    document.getElementById('resetBtn').style.display = 'none';
+    if (isReport) renderReport();
+    else render();
   });
 });
+
+// ───────── RAPOR ─────────
+var rptMode = 'month';
+
+function renderReport() {
+  var panel = document.getElementById('reportPanel');
+  var btnHtml = '<div class="rpt-card"><div class="rpt-card-title">Rapor Türü</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+    + '<button type="button" class="rpt-btn' + (rptMode==='month'?' active':'') + '" data-rpt="month">Bu Ay</button>'
+    + '<button type="button" class="rpt-btn' + (rptMode==='year'?' active':'') + '" data-rpt="year">Bu Yıl</button>'
+    + '<button type="button" class="rpt-btn' + (rptMode==='all'?' active':'') + '" data-rpt="all">Tüm Zamanlar</button>'
+    + '</div></div>';
+
+  var rptData = getRptData();
+  var contentHtml = buildRptHtml(rptData);
+
+  panel.innerHTML = btnHtml + contentHtml
+    + '<button type="button" id="btnExcel" style="width:100%;background:var(--green);color:#fff;border:none;border-radius:13px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;margin-top:10px;">📥 Excel İndir</button>';
+
+  panel.querySelectorAll('.rpt-btn').forEach(function(b) {
+    b.addEventListener('click', function() {
+      rptMode = b.getAttribute('data-rpt');
+      renderReport();
+    });
+  });
+
+  document.getElementById('btnExcel').addEventListener('click', downloadExcel);
+}
+
+function getRptData() {
+  var now = new Date();
+  var thisYear = now.getFullYear();
+  var thisMonth = now.getMonth();
+
+  // Collect rows: {name, category, date, amount, paid}
+  var rows = [];
+  payments.forEach(function(p) {
+    if (p.type === 't') {
+      var d = new Date(p.date + 'T00:00:00');
+      var yr = d.getFullYear(), mo = d.getMonth();
+      var include = rptMode==='month' ? (yr===thisYear && mo===thisMonth)
+                  : rptMode==='year'  ? yr===thisYear
+                  : true;
+      if (include) {
+        rows.push({
+          name: p.name,
+          category: CNMS[p.category] || p.category,
+          date: p.date,
+          amount: parseFloat(p.amount) || 0,
+          paid: isPaid(p, yr, mo)
+        });
+      }
+    } else {
+      var months = p.months === 'always'
+        ? Array.from({length:12}, function(_,i){return i;})
+        : (Array.isArray(p.months) ? p.months : []);
+      months.forEach(function(mo) {
+        var yr = thisYear;
+        var include = rptMode==='month' ? (mo===thisMonth)
+                    : rptMode==='year'  ? true
+                    : true;
+        if (rptMode==='all') {
+          // For "always" payments show last 12 months
+          for (var m=0; m<12; m++) {
+            var checkMo = (thisMonth - m + 12) % 12;
+            var checkYr = thisMonth - m < 0 ? thisYear-1 : thisYear;
+            if (p.months === 'always' || p.months.indexOf(checkMo) >= 0) {
+              rows.push({
+                name: p.name,
+                category: CNMS[p.category] || p.category,
+                date: checkYr + '-' + String(checkMo+1).padStart(2,'0') + '-' + String(p.dueDay).padStart(2,'0'),
+                amount: parseFloat(p.amount) || 0,
+                paid: isPaid(p, checkYr, checkMo)
+              });
+            }
+          }
+          return;
+        }
+        if (include) {
+          rows.push({
+            name: p.name,
+            category: CNMS[p.category] || p.category,
+            date: yr + '-' + String(mo+1).padStart(2,'0') + '-' + String(p.dueDay).padStart(2,'0'),
+            amount: parseFloat(p.amount) || 0,
+            paid: isPaid(p, yr, mo)
+          });
+        }
+      });
+    }
+  });
+
+  // Deduplicate for "all" mode
+  if (rptMode === 'all') {
+    var seen = {};
+    rows = rows.filter(function(r) {
+      var k = r.name + r.date;
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    });
+  }
+
+  rows.sort(function(a,b) { return a.date < b.date ? -1 : 1; });
+  return rows;
+}
+
+function buildRptHtml(rows) {
+  if (rows.length === 0) {
+    return '<div class="rpt-card"><div style="text-align:center;color:var(--sub);padding:20px;font-weight:600;">Bu dönemde ödeme yok</div></div>';
+  }
+
+  var total = 0, paid = 0;
+  rows.forEach(function(r) { total += r.amount; if (r.paid) paid += r.amount; });
+
+  // Category summary
+  var cats = {};
+  rows.forEach(function(r) {
+    if (!cats[r.category]) cats[r.category] = {total:0, count:0, paid:0};
+    cats[r.category].total += r.amount;
+    cats[r.category].count++;
+    if (r.paid) cats[r.category].paid += r.amount;
+  });
+  var catArr = Object.keys(cats).sort(function(a,b) { return cats[b].total - cats[a].total; });
+
+  var html = '';
+
+  // Summary card
+  html += '<div class="rpt-card">';
+  html += '<div class="rpt-card-title">Özet</div>';
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
+  html += '<div class="sum-chip"><div class="sum-chip-val">' + fmt(total) + ' TL</div><div class="sum-chip-lbl">Toplam</div></div>';
+  html += '<div class="sum-chip"><div class="sum-chip-val" style="color:var(--green)">' + fmt(paid) + ' TL</div><div class="sum-chip-lbl">Ödendi</div></div>';
+  html += '<div class="sum-chip"><div class="sum-chip-val" style="color:var(--red)">' + fmt(total-paid) + ' TL</div><div class="sum-chip-lbl">Bekliyor</div></div>';
+  html += '<div class="sum-chip"><div class="sum-chip-val">' + rows.length + '</div><div class="sum-chip-lbl">Ödeme</div></div>';
+  html += '</div></div>';
+
+  // Category breakdown
+  if (catArr.length > 0 && total > 0) {
+    html += '<div class="rpt-card"><div class="rpt-card-title">Kategori Dağılımı</div>';
+    html += '<table class="rpt-table"><thead><tr><th>Kategori</th><th>Tutar</th><th>Ödendi</th><th>Adet</th></tr></thead><tbody>';
+    catArr.forEach(function(c) {
+      var cd = cats[c];
+      html += '<tr><td>' + esc(c) + '</td><td>' + fmt(cd.total) + ' TL</td><td>' + fmt(cd.paid) + ' TL</td><td>' + cd.count + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // Detail list
+  html += '<div class="rpt-card"><div class="rpt-card-title">Ödeme Detayları (' + rows.length + ')</div>';
+  html += '<table class="rpt-table"><thead><tr><th>Tarih</th><th>Ödeme</th><th>Tutar</th><th>Durum</th></tr></thead><tbody>';
+  rows.forEach(function(r) {
+    var ds = r.date ? r.date.split('-') : [];
+    var dateStr = ds.length===3 ? ds[2]+'.'+ds[1]+'.'+ds[0] : r.date;
+    html += '<tr>';
+    html += '<td style="white-space:nowrap">' + dateStr + '</td>';
+    html += '<td>' + esc(r.name) + '<br><span style="font-size:10px;color:var(--sub)">' + esc(r.category) + '</span></td>';
+    html += '<td style="white-space:nowrap">' + (r.amount > 0 ? fmt(r.amount)+' TL' : '-') + '</td>';
+    html += '<td><span style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;background:' + (r.paid?'#e9f9ee':'#fff0ef') + ';color:' + (r.paid?'var(--green)':'var(--red)') + '">' + (r.paid?'Ödendi':'Bekliyor') + '</span></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  return html;
+}
+
+function downloadExcel() {
+  var rows = getRptData();
+  var modeLabel = rptMode==='month' ? (MOFULL[new Date().getMonth()]+' '+new Date().getFullYear())
+                : rptMode==='year' ? new Date().getFullYear()+' Yılı'
+                : 'Tüm Zamanlar';
+
+  // Build CSV with BOM for Turkish chars in Excel
+  var BOM = '\uFEFF';
+  var lines = ['Tarih\tÖdeme Adı\tKategori\tTutar (TL)\tDurum'];
+  rows.forEach(function(r) {
+    var ds = r.date ? r.date.split('-') : [];
+    var dateStr = ds.length===3 ? ds[2]+'.'+ds[1]+'.'+ds[0] : (r.date||'');
+    lines.push([
+      dateStr,
+      r.name,
+      r.category,
+      r.amount > 0 ? r.amount.toFixed(2).replace('.', ',') : '',
+      r.paid ? 'Ödendi' : 'Bekliyor'
+    ].join('\t'));
+  });
+
+  // Summary rows
+  var total = rows.reduce(function(s,r) { return s+r.amount; }, 0);
+  var paid = rows.filter(function(r) { return r.paid; }).reduce(function(s,r) { return s+r.amount; }, 0);
+  lines.push('');
+  lines.push('\t\tTOPLAM\t' + total.toFixed(2).replace('.', ',') + '\t');
+  lines.push('\t\tÖDENDİ\t' + paid.toFixed(2).replace('.', ',') + '\t');
+  lines.push('\t\tBEKLİYOR\t' + (total-paid).toFixed(2).replace('.', ',') + '\t');
+
+  var csv = BOM + lines.join('\n');
+  var blob = new Blob([csv], {type: 'text/tab-separated-values;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'Odeme-Raporu-' + modeLabel.replace(/\s/g,'-') + '.xls';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Excel indirildi');
+}
+
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(function() {});
