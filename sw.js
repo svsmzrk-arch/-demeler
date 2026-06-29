@@ -1,4 +1,4 @@
-var CACHE = 'odeme-v2';
+var CACHE = 'odeme-v3';
 
 self.addEventListener('install', function(e) {
   e.waitUntil(
