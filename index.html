@@ -1233,14 +1233,40 @@ function downloadExcel() {
 }
 
 
+// ── Versiyon kontrolü — eski cache varsa temizle ve yenile ──
+var APP_VERSION = '2025-06-29-v6';
+var storedVersion = localStorage.getItem('app-version');
+if (storedVersion && storedVersion !== APP_VERSION) {
+  // Yeni versiyon gelmiş — cache temizle ve yenile
+  localStorage.setItem('app-version', APP_VERSION);
+  if ('caches' in window) {
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+    }).then(function() {
+      window.location.reload(true);
+    });
+  } else {
+    window.location.reload(true);
+  }
+} else {
+  localStorage.setItem('app-version', APP_VERSION);
+}
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').then(function(reg) {
-    // Listen for messages from SW
+    // Yeni SW varsa hemen aktifleştir
+    reg.addEventListener('updatefound', function() {
+      var newSW = reg.installing;
+      newSW.addEventListener('statechange', function() {
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          // Yeni versiyon hazır — sayfayı yenile
+          newSW.postMessage({type: 'SKIP_WAITING'});
+          window.location.reload(true);
+        }
+      });
+    });
     navigator.serviceWorker.addEventListener('message', function(e) {
-      if (e.data && e.data.type === 'GET_PAYMENTS') {
-        // SW is asking for payments — reply via postMessage isn't possible,
-        // but we keep IndexedDB in sync via persist()
-      }
+      if (e.data && e.data.type === 'GET_PAYMENTS') {}
     });
   }).catch(function() {});
 }
