@@ -1,4 +1,4 @@
-var CACHE = 'odeme-v5';
+var CACHE = 'odeme-v6';
 var STORAGE_KEY = 'odeme-v8';
 
 // ── Install ──────────────────────────────────────────────
@@ -56,6 +56,9 @@ self.addEventListener('notificationclick', function(e) {
 
 // ── Message from app ──────────────────────────────────────
 self.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
   if (e.data && e.data.type === 'CHECK_NOW') {
     checkAndNotify();
   }
