@@ -769,7 +769,267 @@ document.querySelectorAll('.tab').forEach(function(tb) {
 });
 
 // ───────── RAPOR ─────────
-var rptMode = 'month';
+var rptMode = 'custom';
+var rptStart = '';
+var rptEnd = '';
+
+function initRptDates() {
+  var now = new Date();
+  var y = now.getFullYear(), m = now.getMonth();
+  // default: first day of this month to today
+  rptStart = y + '-' + String(m+1).padStart(2,'0') + '-01';
+  rptEnd = now.toISOString().split('T')[0];
+}
+
+function renderReport() {
+  if (!rptStart) initRptDates();
+  var panel = document.getElementById('reportPanel');
+
+  // Quick-select buttons
+  var qs = [
+    {key:'month', label:'Bu Ay'},
+    {key:'lastmonth', label:'Geçen Ay'},
+    {key:'year', label:'Bu Yıl'},
+    {key:'all', label:'Tüm Zamanlar'},
+    {key:'custom', label:'Tarih Seç'},
+  ];
+  var btnHtml = '<div class="rpt-card"><div class="rpt-card-title">Dönem</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
+  qs.forEach(function(q) {
+    btnHtml += '<button type="button" class="rpt-btn' + (rptMode===q.key?' active':'') + '" data-rpt="' + q.key + '">' + q.label + '</button>';
+  });
+  btnHtml += '</div>';
+
+  // Date range pickers
+  btnHtml += '<div style="display:flex;gap:8px;align-items:center;">'
+    + '<div style="flex:1"><div style="font-size:11px;font-weight:700;color:var(--sub);margin-bottom:4px;">BAŞLANGIÇ</div>'
+    + '<input type="date" id="rptStart" value="' + rptStart + '" style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:10px;font-size:14px;font-family:\'Nunito\',sans-serif;font-weight:600;color:var(--text);outline:none;-webkit-appearance:none;"></div>'
+    + '<div style="flex:1"><div style="font-size:11px;font-weight:700;color:var(--sub);margin-bottom:4px;">BİTİŞ</div>'
+    + '<input type="date" id="rptEnd" value="' + rptEnd + '" style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:10px;font-size:14px;font-family:\'Nunito\',sans-serif;font-weight:600;color:var(--text);outline:none;-webkit-appearance:none;"></div>'
+    + '</div>'
+    + '<button type="button" id="btnRptApply" style="width:100%;background:var(--blue);color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;margin-top:10px;">Raporu Oluştur</button>'
+    + '</div>';
+
+  var rptData = getRptData();
+  var contentHtml = buildRptHtml(rptData);
+
+  panel.innerHTML = btnHtml + contentHtml
+    + '<button type="button" id="btnExcel" style="width:100%;background:var(--green);color:#fff;border:none;border-radius:13px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;margin-top:10px;">📥 Excel İndir</button>';
+
+  // Wire quick-select buttons
+  panel.querySelectorAll('.rpt-btn').forEach(function(b) {
+    b.addEventListener('click', function() {
+      rptMode = b.getAttribute('data-rpt');
+      var now = new Date();
+      var y = now.getFullYear(), m = now.getMonth();
+      if (rptMode === 'month') {
+        rptStart = y + '-' + String(m+1).padStart(2,'0') + '-01';
+        rptEnd = now.toISOString().split('T')[0];
+      } else if (rptMode === 'lastmonth') {
+        var lm = m === 0 ? 11 : m-1;
+        var ly = m === 0 ? y-1 : y;
+        var lastDay = new Date(ly, lm+1, 0).getDate();
+        rptStart = ly + '-' + String(lm+1).padStart(2,'0') + '-01';
+        rptEnd = ly + '-' + String(lm+1).padStart(2,'0') + '-' + String(lastDay).padStart(2,'0');
+      } else if (rptMode === 'year') {
+        rptStart = y + '-01-01';
+        rptEnd = now.toISOString().split('T')[0];
+      } else if (rptMode === 'all') {
+        rptStart = '2020-01-01';
+        rptEnd = now.toISOString().split('T')[0];
+      }
+      // 'custom' keeps existing dates
+      renderReport();
+    });
+  });
+
+  // Wire date inputs
+  var startInp = document.getElementById('rptStart');
+  var endInp = document.getElementById('rptEnd');
+  if (startInp) startInp.addEventListener('change', function() { rptStart = this.value; rptMode = 'custom'; });
+  if (endInp) endInp.addEventListener('change', function() { rptEnd = this.value; rptMode = 'custom'; });
+
+  var applyBtn = document.getElementById('btnRptApply');
+  if (applyBtn) applyBtn.addEventListener('click', function() {
+    var s = document.getElementById('rptStart').value;
+    var e = document.getElementById('rptEnd').value;
+    if (!s || !e) { toast('Lütfen başlangıç ve bitiş tarihi seçin'); return; }
+    if (s > e) { toast('Başlangıç tarihi bitiş tarihinden büyük olamaz'); return; }
+    rptStart = s; rptEnd = e;
+    renderReport();
+  });
+
+  var excelBtn = document.getElementById('btnExcel');
+  if (excelBtn) excelBtn.addEventListener('click', downloadExcel);
+}
+
+function getRptData() {
+  if (!rptStart || !rptEnd) initRptDates();
+  var start = new Date(rptStart + 'T00:00:00');
+  var end = new Date(rptEnd + 'T23:59:59');
+  var rows = [];
+
+  payments.forEach(function(p) {
+    if (p.type === 't') {
+      var d = new Date(p.date + 'T00:00:00');
+      if (d >= start && d <= end) {
+        rows.push({
+          name: p.name,
+          category: CNMS[p.category] || p.category,
+          catKey: p.category,
+          date: p.date,
+          amount: parseFloat(p.amount) || 0,
+          paid: isPaid(p, d.getFullYear(), d.getMonth())
+        });
+      }
+    } else {
+      // For recurring: iterate months in range
+      var cur = new Date(start.getFullYear(), start.getMonth(), 1);
+      var endMo = new Date(end.getFullYear(), end.getMonth(), 1);
+      while (cur <= endMo) {
+        var yr = cur.getFullYear(), mo = cur.getMonth();
+        var inMonths = p.months === 'always' ? true : (Array.isArray(p.months) && p.months.indexOf(mo) >= 0);
+        if (inMonths) {
+          var dueDate = new Date(yr, mo, p.dueDay);
+          if (dueDate >= start && dueDate <= end) {
+            var dateStr = yr + '-' + String(mo+1).padStart(2,'0') + '-' + String(p.dueDay).padStart(2,'0');
+            rows.push({
+              name: p.name,
+              category: CNMS[p.category] || p.category,
+              catKey: p.category,
+              date: dateStr,
+              amount: parseFloat(p.amount) || 0,
+              paid: isPaid(p, yr, mo)
+            });
+          }
+        }
+        // next month
+        cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+      }
+    }
+  });
+
+  rows.sort(function(a,b) { return a.date < b.date ? -1 : 1; });
+  return rows;
+}
+
+function buildRptHtml(rows) {
+  var ds = rptStart.split('-'), de = rptEnd.split('-');
+  var rangeLabel = (ds.length===3 ? ds[2]+'.'+ds[1]+'.'+ds[0] : rptStart)
+    + ' – ' + (de.length===3 ? de[2]+'.'+de[1]+'.'+de[0] : rptEnd);
+
+  if (rows.length === 0) {
+    return '<div class="rpt-card"><div style="text-align:center;color:var(--sub);padding:20px;font-weight:600;">'
+      + rangeLabel + ' arasında ödeme bulunamadı</div></div>';
+  }
+
+  var total = 0, paid = 0;
+  rows.forEach(function(r) { total += r.amount; if (r.paid) paid += r.amount; });
+
+  var cats = {};
+  rows.forEach(function(r) {
+    var c = r.category;
+    if (!cats[c]) cats[c] = {total:0, count:0, paidAmt:0, paidCnt:0};
+    cats[c].total += r.amount;
+    cats[c].count++;
+    if (r.paid) { cats[c].paidAmt += r.amount; cats[c].paidCnt++; }
+  });
+  var catArr = Object.keys(cats).sort(function(a,b) { return cats[b].total - cats[a].total; });
+
+  var html = '';
+
+  // Summary
+  html += '<div class="rpt-card">';
+  html += '<div class="rpt-card-title">' + rangeLabel + ' Özeti</div>';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+  html += '<div class="sum-chip"><div class="sum-chip-val">' + fmt(total) + ' TL</div><div class="sum-chip-lbl">Toplam</div></div>';
+  html += '<div class="sum-chip"><div class="sum-chip-val" style="color:var(--green)">' + fmt(paid) + ' TL</div><div class="sum-chip-lbl">Ödendi</div></div>';
+  html += '<div class="sum-chip"><div class="sum-chip-val" style="color:var(--red)">' + fmt(total-paid) + ' TL</div><div class="sum-chip-lbl">Bekliyor</div></div>';
+  html += '<div class="sum-chip"><div class="sum-chip-val">' + rows.length + '</div><div class="sum-chip-lbl">Ödeme</div></div>';
+  html += '</div></div>';
+
+  // Category table
+  if (catArr.length > 0 && total > 0) {
+    html += '<div class="rpt-card"><div class="rpt-card-title">Kategori Dağılımı</div>';
+    // Bar chart
+    catArr.forEach(function(c) {
+      var cd = cats[c];
+      var pct = total > 0 ? Math.round(cd.total/total*100) : 0;
+      var color = CCLR[Object.keys(CNMS).find(function(k){ return CNMS[k]===c; })] || '#8e8e93';
+      html += '<div style="margin-bottom:10px;">';
+      html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">';
+      html += '<span style="font-size:13px;font-weight:700;">' + esc(c) + ' <span style="font-size:11px;color:var(--sub)">(' + cd.count + ' ödeme)</span></span>';
+      html += '<span style="font-size:13px;font-weight:800;color:' + color + '">' + fmt(cd.total) + ' TL</span>';
+      html += '</div>';
+      html += '<div style="background:var(--bg);border-radius:6px;height:10px;overflow:hidden;">';
+      html += '<div style="width:' + pct + '%;height:100%;border-radius:6px;background:' + color + '"></div></div>';
+      html += '<div style="font-size:11px;color:var(--sub);margin-top:3px;">Ödendi: ' + fmt(cd.paidAmt) + ' TL · Bekliyor: ' + fmt(cd.total-cd.paidAmt) + ' TL</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Detail table
+  html += '<div class="rpt-card"><div class="rpt-card-title">Ödeme Detayları (' + rows.length + ')</div>';
+  html += '<table class="rpt-table"><thead><tr><th>Tarih</th><th>Ödeme</th><th>Tutar</th><th>Durum</th></tr></thead><tbody>';
+  rows.forEach(function(r) {
+    var ds2 = r.date ? r.date.split('-') : [];
+    var dateStr = ds2.length===3 ? ds2[2]+'.'+ds2[1]+'.'+ds2[0] : r.date;
+    html += '<tr>';
+    html += '<td style="white-space:nowrap;font-size:12px">' + dateStr + '</td>';
+    html += '<td>' + esc(r.name) + '<br><span style="font-size:10px;color:var(--sub)">' + esc(r.category) + '</span></td>';
+    html += '<td style="white-space:nowrap">' + (r.amount > 0 ? fmt(r.amount)+' TL' : '-') + '</td>';
+    html += '<td><span style="font-size:11px;font-weight:800;padding:2px 7px;border-radius:20px;background:' + (r.paid?'#e9f9ee':'#fff0ef') + ';color:' + (r.paid?'var(--green)':'var(--red)') + '">' + (r.paid?'Ödendi':'Bekliyor') + '</span></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  return html;
+}
+
+function downloadExcel() {
+  var rows = getRptData();
+  var ds = rptStart.split('-'), de = rptEnd.split('-');
+  var label = (ds.length===3 ? ds[2]+'.'+ds[1]+'.'+ds[0] : rptStart)
+    + '_' + (de.length===3 ? de[2]+'.'+de[1]+'.'+de[0] : rptEnd);
+
+  var total = rows.reduce(function(s,r){return s+r.amount;},0);
+  var paid = rows.filter(function(r){return r.paid;}).reduce(function(s,r){return s+r.amount;},0);
+
+  var BOM = '\uFEFF';
+  var lines = [
+    'Ödeme Raporu: ' + label.replace(/_/g,' – '),
+    '',
+    'Tarih\tÖdeme Adı\tKategori\tTutar (TL)\tDurum'
+  ];
+
+  rows.forEach(function(r) {
+    var ds2 = r.date ? r.date.split('-') : [];
+    var dateStr = ds2.length===3 ? ds2[2]+'.'+ds2[1]+'.'+ds2[0] : (r.date||'');
+    lines.push([
+      dateStr,
+      r.name,
+      r.category,
+      r.amount > 0 ? r.amount.toFixed(2).replace('.',',') : '',
+      r.paid ? 'Ödendi' : 'Bekliyor'
+    ].join('\t'));
+  });
+
+  lines.push('');
+  lines.push('\t\tTOPLAM\t' + total.toFixed(2).replace('.',','));
+  lines.push('\t\tÖDENDİ\t' + paid.toFixed(2).replace('.',','));
+  lines.push('\t\tBEKLİYOR\t' + (total-paid).toFixed(2).replace('.',','));
+
+  var blob = new Blob([BOM + lines.join('\n')], {type:'text/tab-separated-values;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'Odeme-Raporu-' + label + '.xls';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Excel indirildi');
+}
+
 
 function renderReport() {
   var panel = document.getElementById('reportPanel');
