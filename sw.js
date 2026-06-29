@@ -1,4 +1,4 @@
-var CACHE = 'odeme-v7';
+var CACHE = 'odeme-v8';
 var STORAGE_KEY = 'odeme-v8';
 
 // ── Install ──────────────────────────────────────────────
