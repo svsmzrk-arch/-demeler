@@ -1234,11 +1234,137 @@ function downloadExcel() {
 
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(function() {});
+  navigator.serviceWorker.register('./sw.js').then(function(reg) {
+    // Listen for messages from SW
+    navigator.serviceWorker.addEventListener('message', function(e) {
+      if (e.data && e.data.type === 'GET_PAYMENTS') {
+        // SW is asking for payments — reply via postMessage isn't possible,
+        // but we keep IndexedDB in sync via persist()
+      }
+    });
+  }).catch(function() {});
+}
+
+// ── IndexedDB: sync payments so SW can read them ──────────
+function openDB() {
+  return new Promise(function(resolve, reject) {
+    var req = indexedDB.open('odeme-db', 1);
+    req.onupgradeneeded = function(e) {
+      e.target.result.createObjectStore('payments', {keyPath: 'id'});
+    };
+    req.onsuccess = function(e) { resolve(e.target.result); };
+    req.onerror = reject;
+  });
+}
+
+function syncToIDB() {
+  openDB().then(function(db) {
+    var tx = db.transaction('payments', 'readwrite');
+    var store = tx.objectStore('payments');
+    store.put({id: 'all', data: JSON.stringify(payments)});
+  }).catch(function() {});
+}
+
+// Override persist to also sync to IDB
+var _origPersist = persist;
+persist = function() {
+  _origPersist();
+  syncToIDB();
+};
+
+// ── Notification permission & scheduling ──────────────────
+var notifPermission = 'default';
+
+function requestNotifPermission() {
+  if (!('Notification' in window)) {
+    toast('Bu tarayıcı bildirimleri desteklemiyor');
+    return;
+  }
+  Notification.requestPermission().then(function(result) {
+    notifPermission = result;
+    if (result === 'granted') {
+      toast('Bildirimler açıldı! Her gün saat 09:00\'da hatırlatacak 🔔');
+      // Tell SW to schedule
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({type: 'SCHEDULE'});
+      }
+      // Immediate check
+      checkNotificationsNow();
+      renderNotifBanner();
+    } else {
+      toast('Bildirim izni verilmedi');
+      renderNotifBanner();
+    }
+  });
+}
+
+function checkNotificationsNow() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({type: 'CHECK_NOW'});
+  }
+}
+
+function renderNotifBanner() {
+  var banner = document.getElementById('notifBanner');
+  if (!banner) return;
+  var perm = 'Notification' in window ? Notification.permission : 'unsupported';
+
+  if (perm === 'granted') {
+    banner.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">'
+      + '<span style="font-size:18px;">🔔</span>'
+      + '<div style="flex:1"><div style="font-size:13px;font-weight:800;">Bildirimler Açık</div>'
+      + '<div style="font-size:11px;color:var(--sub);">Her gün saat 09:00\'da yaklaşan ödemeler için hatırlatma gelir</div></div>'
+      + '<button type="button" onclick="checkNotificationsNow();toast(\'Kontrol yapılıyor...\');" style="background:var(--blue);color:#fff;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;">Şimdi Kontrol Et</button>'
+      + '</div>';
+    banner.style.background = '#e9f9ee';
+    banner.style.border = '1.5px solid #34c759';
+  } else if (perm === 'denied') {
+    banner.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">'
+      + '<span style="font-size:18px;">🔕</span>'
+      + '<div style="flex:1"><div style="font-size:13px;font-weight:800;">Bildirimler Kapalı</div>'
+      + '<div style="font-size:11px;color:var(--sub);">Tarayıcı ayarlarından bildirimlere izin verin</div></div>'
+      + '</div>';
+    banner.style.background = '#fff0ef';
+    banner.style.border = '1.5px solid var(--red)';
+  } else if (perm === 'unsupported') {
+    banner.style.display = 'none';
+  } else {
+    banner.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">'
+      + '<span style="font-size:18px;">🔔</span>'
+      + '<div style="flex:1"><div style="font-size:13px;font-weight:800;">Ödeme Hatırlatmaları</div>'
+      + '<div style="font-size:11px;color:var(--sub);">Geciken ve yaklaşan ödemeler için bildirim al</div></div>'
+      + '<button type="button" id="btnEnableNotif" style="background:var(--blue);color:#fff;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;">Aç</button>'
+      + '</div>';
+    banner.style.background = 'var(--card)';
+    banner.style.border = '1.5px solid var(--border)';
+    document.getElementById('btnEnableNotif') &&
+      document.getElementById('btnEnableNotif').addEventListener('click', requestNotifPermission);
+  }
+}
+
+// ── Bildirim ayarları HTML (summary alanının altına eklenir) ──
+function injectNotifBanner() {
+  if (document.getElementById('notifBanner')) return;
+  var banner = document.createElement('div');
+  banner.id = 'notifBanner';
+  banner.style.cssText = 'margin:10px 12px 0;border-radius:14px;padding:13px 14px;';
+  // Insert after summary
+  var summary = document.getElementById('summary');
+  summary.parentNode.insertBefore(banner, summary.nextSibling);
+  renderNotifBanner();
 }
 
 load();
+syncToIDB();
 render();
+injectNotifBanner();
+
+// Check notifications on app open (if permission already granted)
+if ('Notification' in window && Notification.permission === 'granted') {
+  setTimeout(checkNotificationsNow, 2000);
+}
+
 </script>
 </body>
 </html>
