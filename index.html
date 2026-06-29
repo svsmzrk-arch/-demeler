@@ -121,8 +121,11 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
 
 <div class="header">
   <div class="header-row">
-    <div class="header-title">Ödemeler</div>
-    <button type="button" id="btnOpenAdd" class="btn-add">+ Ekle</button>
+    <div class="header-title">💰 Ödemeler</div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" id="btnDriveOpen" style="background:var(--bg);color:var(--blue);border:1.5px solid var(--border);border-radius:50px;padding:9px 14px;font-size:13px;font-weight:800;cursor:pointer;">☁️</button>
+      <button type="button" id="btnOpenAdd" class="btn-add">+ Ekle</button>
+    </div>
   </div>
   <div class="month-nav">
     <button type="button" id="btnPrev" class="mnav-btn">&#8249;</button>
@@ -265,6 +268,36 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
     <div class="confirm-actions">
       <button type="button" id="confirmNo" class="confirm-btn confirm-cancel">Vazgeç</button>
       <button type="button" id="confirmYes" class="confirm-btn confirm-ok">Sil</button>
+    </div>
+  </div>
+</div>
+
+<!-- Silme seçeneği: sadece bu ay mı, tümü mü -->
+<div class="confirm-overlay" id="delChoiceOv">
+  <div class="confirm-box">
+    <div style="font-size:22px;margin-bottom:8px;">🗑️</div>
+    <div class="confirm-msg" id="delChoiceMsg"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button type="button" id="delChoiceMonth" style="background:#fff0ef;color:var(--red);border:1.5px solid var(--red);border-radius:12px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;"></button>
+      <button type="button" id="delChoiceAll" style="background:var(--red);color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">Tümünü Sil (tüm aylardan)</button>
+      <button type="button" id="delChoiceCancel" style="background:var(--bg);color:var(--text);border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">Vazgeç</button>
+    </div>
+  </div>
+</div>
+
+<!-- Drive yedekleme modalı -->
+<div class="confirm-overlay" id="driveOv">
+  <div class="confirm-box" style="text-align:left;">
+    <div style="font-size:18px;font-weight:900;margin-bottom:4px;">☁️ Google Drive Yedekleme</div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:16px;font-weight:600;">Verilerini Drive'a kaydet veya geri yükle</div>
+    <div id="driveStatus" style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;font-weight:700;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button type="button" id="btnDriveBackup" style="background:var(--blue);color:#fff;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;">📤 Drive'a Yedekle</button>
+      <button type="button" id="btnDriveRestore" style="background:#e8f0ff;color:var(--blue);border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;">📥 Drive'dan Geri Yükle</button>
+      <button type="button" id="btnDriveExport" style="background:var(--bg);color:var(--text);border:1.5px solid var(--border);border-radius:12px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;">💾 JSON Olarak İndir</button>
+      <button type="button" id="btnDriveImport" style="background:var(--bg);color:var(--text);border:1.5px solid var(--border);border-radius:12px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;">📂 JSON Dosyasından Yükle</button>
+      <input type="file" id="importFile" accept=".json" style="display:none;">
+      <button type="button" id="btnDriveClose" style="background:var(--bg);color:var(--sub);border:none;border-radius:12px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">Kapat</button>
     </div>
   </div>
 </div>
@@ -637,6 +670,183 @@ function delPayment(id) {
   }
 }
 
+// Sadece bu aydan sil (düzenli ödemeden bir ayı çıkar)
+function delFromMonth(id) {
+  payments = payments.map(function(p) {
+    if (p.id !== id) return p;
+    var u = Object.assign({}, p, {paidMonths: Object.assign({}, p.paidMonths || {})});
+    // months dizisinden viewMonth'u çıkar
+    if (p.months === 'always') {
+      // always'i spesifik aylara çevir, bu ayı çıkar
+      var allMonths = [0,1,2,3,4,5,6,7,8,9,10,11].filter(function(m) { return m !== viewMonth; });
+      u.months = allMonths;
+    } else if (Array.isArray(p.months)) {
+      u.months = p.months.filter(function(m) { return m !== viewMonth; });
+    }
+    return u;
+  });
+  persist();
+  render();
+  toast(MOFULL[viewMonth] + ' ayından silindi');
+}
+
+// Silme seçeneği diyaloğu (düzenli ödemeler için)
+var delChoiceId = null;
+function showDelChoice(p) {
+  delChoiceId = p.id;
+  document.getElementById('delChoiceMsg').textContent = '"' + p.name + '" ödemesi için ne yapmak istiyorsunuz?';
+  document.getElementById('delChoiceMonth').textContent = 'Sadece ' + MOFULL[viewMonth] + ' ayından sil';
+  document.getElementById('delChoiceOv').classList.add('open');
+}
+function closeDelChoice() {
+  document.getElementById('delChoiceOv').classList.remove('open');
+  delChoiceId = null;
+}
+
+// ── DRIVE / YEDEKLEME ─────────────────────────────────────
+function openDrive() {
+  updateDriveStatus();
+  document.getElementById('driveOv').classList.add('open');
+}
+function closeDrive() { document.getElementById('driveOv').classList.remove('open'); }
+
+function updateDriveStatus() {
+  var el = document.getElementById('driveStatus');
+  var lastBackup = localStorage.getItem('last-backup');
+  var count = payments.length;
+  el.innerHTML = count + ' ödeme kayıtlı'
+    + (lastBackup ? '<br><span style="color:var(--sub);font-size:11px;">Son yedek: ' + lastBackup + '</span>' : '<br><span style="color:var(--sub);font-size:11px;">Henüz yedek alınmamış</span>');
+}
+
+// JSON olarak indir (manuel yedek)
+function exportJSON() {
+  var data = {
+    version: 1,
+    exportDate: new Date().toISOString(),
+    payments: payments
+  };
+  var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'odeme-yedek-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  var now = new Date().toLocaleString('tr-TR');
+  localStorage.setItem('last-backup', now);
+  updateDriveStatus();
+  toast('Yedek indirildi');
+}
+
+// JSON dosyasından yükle
+function importJSON(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      var imported = data.payments || data;
+      if (!Array.isArray(imported)) throw new Error('Geçersiz format');
+      showConfirm(
+        imported.length + ' ödeme yüklenecek. Mevcut veriler silinecek. Devam?',
+        'Yükle',
+        function() {
+          payments = imported;
+          persist();
+          render();
+          closeDrive();
+          toast(imported.length + ' ödeme yüklendi');
+        }
+      );
+    } catch(err) {
+      toast('Geçersiz yedek dosyası');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Google Drive — OAuth ile gerçek entegrasyon
+// Not: Drive API client ID gerektirir. Şimdilik yönlendirme ile yapıyoruz.
+var DRIVE_CLIENT_ID = ''; // Kullanıcı kendi client ID'sini girmeli
+var driveToken = null;
+
+function driveBackup() {
+  if (!DRIVE_CLIENT_ID) {
+    // Client ID yoksa — manuel yedek al
+    showConfirm(
+      'Google Drive entegrasyonu için bir kez kurulum gerekiyor.\n\nŞimdilik JSON olarak indir ve Drive\'a manuel yükle?',
+      'İndir',
+      function() { exportJSON(); closeDrive(); }
+    );
+    return;
+  }
+  driveAuth(function(token) {
+    if (!token) return;
+    var data = JSON.stringify({version:1, exportDate:new Date().toISOString(), payments:payments});
+    var metadata = {name:'odeme-yedek.json', mimeType:'application/json', parents:['appDataFolder']};
+    var form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+    form.append('file', new Blob([data], {type:'application/json'}));
+    fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      method:'POST',
+      headers:{'Authorization':'Bearer ' + token},
+      body: form
+    }).then(function(r) { return r.json(); }).then(function() {
+      var now = new Date().toLocaleString('tr-TR');
+      localStorage.setItem('last-backup', now);
+      updateDriveStatus();
+      toast('Drive\'a yedeklendi ✓');
+    }).catch(function() { toast('Drive yedekleme hatası'); });
+  });
+}
+
+function driveRestore() {
+  if (!DRIVE_CLIENT_ID) {
+    toast('Önce JSON dosyasından yüklemeyi deneyin');
+    return;
+  }
+  driveAuth(function(token) {
+    if (!token) return;
+    fetch("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='odeme-yedek.json'", {
+      headers:{'Authorization':'Bearer ' + token}
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (!data.files || data.files.length === 0) { toast('Drive\'da yedek bulunamadı'); return; }
+      var fileId = data.files[0].id;
+      return fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
+        headers:{'Authorization':'Bearer ' + token}
+      });
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      var imported = data.payments || data;
+      if (!Array.isArray(imported)) throw new Error();
+      showConfirm(imported.length + ' ödeme yüklenecek. Mevcut veriler silinecek.', 'Yükle', function() {
+        payments = imported; persist(); render(); closeDrive();
+        toast(imported.length + ' ödeme Drive\'dan yüklendi');
+      });
+    }).catch(function() { toast('Drive geri yükleme hatası'); });
+  });
+}
+
+function driveAuth(cb) {
+  if (driveToken) { cb(driveToken); return; }
+  var redirectUri = location.origin + location.pathname;
+  var authUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
+    + '?client_id=' + DRIVE_CLIENT_ID
+    + '&redirect_uri=' + encodeURIComponent(redirectUri)
+    + '&response_type=token'
+    + '&scope=' + encodeURIComponent('https://www.googleapis.com/auth/drive.appdata');
+  var w = window.open(authUrl, '_blank', 'width=500,height=600');
+  var timer = setInterval(function() {
+    try {
+      var hash = w.location.hash;
+      if (hash && hash.indexOf('access_token') >= 0) {
+        clearInterval(timer);
+        w.close();
+        var token = hash.match(/access_token=([^&]+)/);
+        if (token) { driveToken = token[1]; cb(driveToken); }
+      }
+    } catch(e) {}
+  }, 500);
+}
+
 function showConfirm(msg, okLabel, cb) {
   document.getElementById('confirmMsg').textContent = msg;
   document.getElementById('confirmYes').textContent = okLabel || 'Sil';
@@ -746,13 +956,51 @@ document.getElementById('list').addEventListener('click', function(e) {
     openEdit(id);
   } else if (action === 'del') {
     var p = payments.find(function(x) { return x.id === id; });
-    var nm = p ? p.name : 'Bu odeme';
-    showConfirm('"' + nm + '" silinecek. Geri alınamaz.', 'Sil', function() {
-      delPayment(id);
-    });
+    if (!p) return;
+    if (p.type === 'd') {
+      // Düzenli ödeme — seçenek sun
+      showDelChoice(p);
+    } else {
+      // Tek seferlik — direkt sil
+      showConfirm('"' + p.name + '" silinecek. Geri alınamaz.', 'Sil', function() {
+        delPayment(id);
+      });
+    }
   }
 });
 
+// Del choice listeners
+document.getElementById('delChoiceMonth').addEventListener('click', function() {
+  var id = delChoiceId;
+  closeDelChoice();
+  if (id) delFromMonth(id);
+});
+document.getElementById('delChoiceAll').addEventListener('click', function() {
+  var id = delChoiceId;
+  closeDelChoice();
+  if (id) delPayment(id);
+});
+document.getElementById('delChoiceCancel').addEventListener('click', closeDelChoice);
+document.getElementById('delChoiceOv').addEventListener('click', function(e) {
+  if (e.target.id === 'delChoiceOv') closeDelChoice();
+});
+
+// Drive listeners
+document.getElementById('btnDriveOpen').addEventListener('click', openDrive);
+document.getElementById('btnDriveClose').addEventListener('click', closeDrive);
+document.getElementById('driveOv').addEventListener('click', function(e) {
+  if (e.target.id === 'driveOv') closeDrive();
+});
+document.getElementById('btnDriveBackup').addEventListener('click', driveBackup);
+document.getElementById('btnDriveRestore').addEventListener('click', driveRestore);
+document.getElementById('btnDriveExport').addEventListener('click', function() { exportJSON(); });
+document.getElementById('btnDriveImport').addEventListener('click', function() {
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', function(e) {
+  if (e.target.files[0]) importJSON(e.target.files[0]);
+  e.target.value = '';
+});
 document.querySelectorAll('.tab').forEach(function(tb) {
   tb.addEventListener('click', function() {
     filt = tb.getAttribute('data-filter');
@@ -1033,7 +1281,7 @@ function downloadExcel() {
 
 
 // ── Versiyon kontrolü — eski cache varsa temizle ve yenile ──
-var APP_VERSION = '2025-06-29-v7';
+var APP_VERSION = '2025-06-29-v9';
 var storedVersion = localStorage.getItem('app-version');
 if (storedVersion && storedVersion !== APP_VERSION) {
   // Yeni versiyon gelmiş — cache temizle ve yenile
