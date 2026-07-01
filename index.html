@@ -302,6 +302,27 @@ button{font-family:'Nunito',sans-serif;touch-action:manipulation;}
   </div>
 </div>
 
+<!-- Başlangıç ay/yıl seçici -->
+<div class="confirm-overlay" id="startMonthOv">
+  <div class="confirm-box" style="text-align:left;max-width:340px;">
+    <div style="font-size:17px;font-weight:900;margin-bottom:4px;">📅 Başlangıç Ayı</div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:14px;font-weight:600;">Bu ödeme hangi aydan itibaren başlayacak?</div>
+    <!-- Ay/yıl navigator -->
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-radius:12px;padding:8px 4px;margin-bottom:12px;">
+      <button type="button" id="smPrev" style="background:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:18px;font-weight:900;cursor:pointer;color:var(--blue);">‹</button>
+      <div style="text-align:center;">
+        <div style="font-size:16px;font-weight:900;" id="smMonthLabel"></div>
+        <div style="font-size:12px;color:var(--sub);font-weight:700;" id="smYearLabel"></div>
+      </div>
+      <button type="button" id="smNext" style="background:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:18px;font-weight:900;cursor:pointer;color:var(--blue);">›</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button type="button" id="smConfirm" style="background:var(--blue);color:#fff;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;">Bu Aydan Başlat</button>
+      <button type="button" id="smCancel" style="background:var(--bg);color:var(--sub);border:none;border-radius:12px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">Vazgeç</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -367,8 +388,23 @@ function getStatus(p, yr, mo) {
     if (df <= 3) return 'yaklasiyor';
     return 'gelecek';
   }
-  var inMo = p.months === 'always' ? true : (Array.isArray(p.months) && p.months.indexOf(mo) >= 0);
-  if (!inMo) return null;
+
+  // Düzenli ödeme: başlangıç yıl/ay kontrolü
+  if (p.months === 'always') {
+    // Başlangıç ayı varsa, ondan önceki ay/yıllarda gösterme
+    if (p.startYear && p.startMonth !== undefined) {
+      if (yr < p.startYear) return null;
+      if (yr === p.startYear && mo < p.startMonth) return null;
+    }
+    // Silinmiş ay/yıl çiftleri: deletedMonths = ["2024-5", "2025-6"] formatında
+    if (p.deletedMonths && p.deletedMonths.indexOf(yr + '-' + mo) >= 0) return null;
+  } else {
+    var inMo = Array.isArray(p.months) && p.months.indexOf(mo) >= 0;
+    if (!inMo) return null;
+    // Yıl bazlı silme: deletedMonths kontrolü
+    if (p.deletedMonths && p.deletedMonths.indexOf(yr + '-' + mo) >= 0) return null;
+  }
+
   if (isPaid(p, yr, mo)) return 'odendi';
   var now2 = new Date(); now2.setHours(0,0,0,0);
   var due2 = new Date(yr, mo, p.dueDay); due2.setHours(0,0,0,0);
@@ -384,8 +420,15 @@ function metaTxt(p) {
     var d = new Date(p.date + 'T00:00:00');
     return d.getDate() + ' ' + MO[d.getMonth()] + ' ' + d.getFullYear();
   }
-  var ml = p.months === 'always' ? 'Sürekli' : p.months.map(function(m) { return MO[m]; }).join(', ');
-  return 'Her ayın ' + p.dueDay + '. günü - ' + ml;
+  if (p.months === 'always') {
+    var start = '';
+    if (p.startYear && p.startMonth !== undefined) {
+      start = ' · ' + MO[p.startMonth] + ' ' + p.startYear + '\'den itibaren';
+    }
+    return 'Her ayın ' + p.dueDay + '. günü · Sürekli' + start;
+  }
+  var ml = p.months.map(function(m) { return MO[m]; }).join(', ');
+  return 'Her ayın ' + p.dueDay + '. günü · ' + ml;
 }
 
 function blabel(s) {
@@ -525,20 +568,102 @@ function buildGrid(gridId, selSet) {
   });
 }
 
+// Başlangıç ay seçici state
+var smPickerYear = new Date().getFullYear();
+var smPickerMonth = new Date().getMonth();
+var smCallback = null; // called with {year, month} when confirmed
+
+function openStartMonthPicker(initYear, initMonth, onConfirm) {
+  smPickerYear = initYear;
+  smPickerMonth = initMonth;
+  smCallback = onConfirm;
+  updateSmLabel();
+  document.getElementById('startMonthOv').classList.add('open');
+}
+function closeStartMonthPicker() {
+  document.getElementById('startMonthOv').classList.remove('open');
+  smCallback = null;
+}
+function updateSmLabel() {
+  document.getElementById('smMonthLabel').textContent = MOFULL[smPickerMonth];
+  document.getElementById('smYearLabel').textContent = smPickerYear;
+}
+
+document.getElementById('smPrev').addEventListener('click', function() {
+  smPickerMonth--;
+  if (smPickerMonth < 0) { smPickerMonth = 11; smPickerYear--; }
+  updateSmLabel();
+});
+document.getElementById('smNext').addEventListener('click', function() {
+  smPickerMonth++;
+  if (smPickerMonth > 11) { smPickerMonth = 0; smPickerYear++; }
+  updateSmLabel();
+});
+document.getElementById('smConfirm').addEventListener('click', function() {
+  var cb = smCallback;
+  var yr = smPickerYear, mo = smPickerMonth;
+  closeStartMonthPicker();
+  if (cb) cb(yr, mo);
+});
+document.getElementById('smCancel').addEventListener('click', closeStartMonthPicker);
+
+// Başlangıç ay state (add/edit formları için)
+var addStartYear = null;
+var addStartMonth = null;
+var editStartYear = null;
+var editStartMonth = null;
+
 function handleGrid(e, selSet, gridId) {
   var btn = e.target.closest('.month-chip');
   if (!btn) return;
   var val = btn.getAttribute('data-val');
   if (val === 'always') {
-    if (selSet.has('always')) selSet.clear();
-    else { selSet.clear(); selSet.add('always'); }
+    if (selSet.has('always')) {
+      selSet.clear();
+      if (gridId === 'addGrid') { addStartYear = null; addStartMonth = null; updateStartLabel('add'); }
+      else { editStartYear = null; editStartMonth = null; updateStartLabel('edit'); }
+    } else {
+      selSet.clear();
+      selSet.add('always');
+      buildGrid(gridId, selSet);
+      // Başlangıç ay seçici aç
+      var initYr = gridId === 'addGrid' ? viewYear : viewYear;
+      var initMo = gridId === 'addGrid' ? viewMonth : viewMonth;
+      openStartMonthPicker(initYr, initMo, function(yr, mo) {
+        if (gridId === 'addGrid') { addStartYear = yr; addStartMonth = mo; updateStartLabel('add'); }
+        else { editStartYear = yr; editStartMonth = mo; updateStartLabel('edit'); }
+      });
+      return;
+    }
   } else {
     var idx = parseInt(val, 10);
-    if (selSet.has('always')) selSet.clear();
+    if (selSet.has('always')) {
+      selSet.clear();
+      if (gridId === 'addGrid') { addStartYear = null; addStartMonth = null; updateStartLabel('add'); }
+      else { editStartYear = null; editStartMonth = null; updateStartLabel('edit'); }
+    }
     if (selSet.has(idx)) selSet.delete(idx);
     else selSet.add(idx);
   }
   buildGrid(gridId, selSet);
+}
+
+function updateStartLabel(which) {
+  var yr = which === 'add' ? addStartYear : editStartYear;
+  var mo = which === 'add' ? addStartMonth : editStartMonth;
+  var elId = which === 'add' ? 'addStartLabel' : 'editStartLabel';
+  var el = document.getElementById(elId);
+  if (!el) return;
+  if (yr !== null && mo !== null) {
+    el.style.display = 'block';
+    el.innerHTML = 'Başlangıç: <strong>' + MOFULL[mo] + ' ' + yr + '</strong>'
+      + ' <button type="button" onclick="openStartMonthPicker(' + yr + ',' + mo + ',function(y,m){'
+      + 'if(\'' + which + '\'===\'add\'){addStartYear=y;addStartMonth=m;}else{editStartYear=y;editStartMonth=m;}'
+      + 'updateStartLabel(\'' + which + '\');});" '
+      + 'style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;cursor:pointer;margin-left:8px;">Değiştir</button>';
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 function openAdd() {
@@ -577,6 +702,10 @@ function saveAdd() {
     if (addSel.size === 0) { toast('En az bir ay seçin veya Sürekli işaretleyin'); return; }
     p.dueDay = day;
     p.months = addSel.has('always') ? 'always' : Array.from(addSel).sort(function(a,b) { return a-b; });
+    if (addSel.has('always') && addStartYear !== null && addStartMonth !== null) {
+      p.startYear = addStartYear;
+      p.startMonth = addStartMonth;
+    }
   } else {
     var dt = document.getElementById('addDate').value;
     if (!dt) { toast('Lütfen tarih seçin'); return; }
@@ -605,9 +734,20 @@ function openEdit(id) {
   if (p.type === 'd') {
     document.getElementById('editDay').value = p.dueDay;
     editSel = p.months === 'always' ? new Set(['always']) : new Set(p.months);
+    // Mevcut başlangıç ay/yıl bilgisini yükle
+    if (p.months === 'always' && p.startYear !== undefined) {
+      editStartYear = p.startYear;
+      editStartMonth = p.startMonth;
+    } else {
+      editStartYear = null;
+      editStartMonth = null;
+    }
+    updateStartLabel('edit');
   } else {
     document.getElementById('editDate').value = p.date;
     editSel = new Set();
+    editStartYear = null;
+    editStartMonth = null;
   }
   buildGrid('editGrid', editSel);
   document.getElementById('editOv').classList.add('open');
@@ -629,7 +769,8 @@ function saveEdit() {
     category: document.getElementById('editCat').value,
     note: document.getElementById('editNote').value.trim(),
     type: editType,
-    paidMonths: Object.assign({}, orig.paidMonths || {})
+    paidMonths: Object.assign({}, orig.paidMonths || {}),
+    deletedMonths: Array.isArray(orig.deletedMonths) ? orig.deletedMonths.slice() : []
   };
   if (editType === 'd') {
     var day = parseInt(document.getElementById('editDay').value, 10);
@@ -637,6 +778,10 @@ function saveEdit() {
     if (editSel.size === 0) { toast('En az bir ay seçin'); return; }
     u.dueDay = day;
     u.months = editSel.has('always') ? 'always' : Array.from(editSel).sort(function(a,b) { return a-b; });
+    if (editSel.has('always') && editStartYear !== null && editStartMonth !== null) {
+      u.startYear = editStartYear;
+      u.startMonth = editStartMonth;
+    }
   } else {
     var dt = document.getElementById('editDate').value;
     if (!dt) { toast('Lütfen tarih seçin'); return; }
@@ -675,19 +820,16 @@ function delFromMonth(id) {
   payments = payments.map(function(p) {
     if (p.id !== id) return p;
     var u = Object.assign({}, p, {paidMonths: Object.assign({}, p.paidMonths || {})});
-    // months dizisinden viewMonth'u çıkar
-    if (p.months === 'always') {
-      // always'i spesifik aylara çevir, bu ayı çıkar
-      var allMonths = [0,1,2,3,4,5,6,7,8,9,10,11].filter(function(m) { return m !== viewMonth; });
-      u.months = allMonths;
-    } else if (Array.isArray(p.months)) {
-      u.months = p.months.filter(function(m) { return m !== viewMonth; });
-    }
+    // deletedMonths: ["yr-mo", ...] formatında yıl+ay bazlı silme
+    var deleted = Array.isArray(p.deletedMonths) ? p.deletedMonths.slice() : [];
+    var key = viewYear + '-' + viewMonth;
+    if (deleted.indexOf(key) < 0) deleted.push(key);
+    u.deletedMonths = deleted;
     return u;
   });
   persist();
   render();
-  toast(MOFULL[viewMonth] + ' ayından silindi');
+  toast(MOFULL[viewMonth] + ' ' + viewYear + ' ayından silindi');
 }
 
 // Silme seçeneği diyaloğu (düzenli ödemeler için)
@@ -764,87 +906,109 @@ function importJSON(file) {
   reader.readAsText(file);
 }
 
-// Google Drive — OAuth ile gerçek entegrasyon
-// Not: Drive API client ID gerektirir. Şimdilik yönlendirme ile yapıyoruz.
-var DRIVE_CLIENT_ID = ''; // Kullanıcı kendi client ID'sini girmeli
+// Google Drive — OAuth entegrasyonu
+var DRIVE_CLIENT_ID = localStorage.getItem('drive-client-id') || '';
 var driveToken = null;
 
 function driveBackup() {
-  if (!DRIVE_CLIENT_ID) {
-    // Client ID yoksa — manuel yedek al
-    showConfirm(
-      'Google Drive entegrasyonu için bir kez kurulum gerekiyor.\n\nŞimdilik JSON olarak indir ve Drive\'a manuel yükle?',
-      'İndir',
-      function() { exportJSON(); closeDrive(); }
-    );
-    return;
-  }
-  driveAuth(function(token) {
-    if (!token) return;
-    var data = JSON.stringify({version:1, exportDate:new Date().toISOString(), payments:payments});
-    var metadata = {name:'odeme-yedek.json', mimeType:'application/json', parents:['appDataFolder']};
-    var form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
-    form.append('file', new Blob([data], {type:'application/json'}));
-    fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-      method:'POST',
-      headers:{'Authorization':'Bearer ' + token},
-      body: form
-    }).then(function(r) { return r.json(); }).then(function() {
-      var now = new Date().toLocaleString('tr-TR');
-      localStorage.setItem('last-backup', now);
-      updateDriveStatus();
-      toast('Drive\'a yedeklendi ✓');
-    }).catch(function() { toast('Drive yedekleme hatası'); });
-  });
+  if (!DRIVE_CLIENT_ID) { openDriveSetup(); return; }
+  driveAuth(function(token) { if (token) uploadToDrive(token); });
 }
 
 function driveRestore() {
-  if (!DRIVE_CLIENT_ID) {
-    toast('Önce JSON dosyasından yüklemeyi deneyin');
-    return;
+  if (!DRIVE_CLIENT_ID) { openDriveSetup(); return; }
+  driveAuth(function(token) { if (token) restoreFromDrive(token); });
+}
+
+function openDriveSetup() {
+  var msg = 'Google Drive için OAuth Client ID gerekiyor.\n\n'
+    + 'Adımlar:\n'
+    + '1. console.cloud.google.com > Yeni proje oluştur\n'
+    + '2. APIs & Services > Library > Google Drive API > Enable\n'
+    + '3. APIs & Services > Credentials > Create Credentials > OAuth Client ID\n'
+    + '4. Application type: Web application\n'
+    + '5. Authorized JavaScript origins: ' + location.origin + '\n'
+    + '6. Client ID yi kopyala ve buraya yapistir:\n';
+  var cid = prompt(msg, DRIVE_CLIENT_ID);
+  if (cid && cid.trim()) {
+    DRIVE_CLIENT_ID = cid.trim();
+    localStorage.setItem('drive-client-id', DRIVE_CLIENT_ID);
+    toast('Client ID kaydedildi');
+    updateDriveStatus();
   }
-  driveAuth(function(token) {
-    if (!token) return;
-    fetch("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='odeme-yedek.json'", {
+}
+
+function uploadToDrive(token) {
+  toast('Drive a yukleniyor...');
+  var data = JSON.stringify({version:1, exportDate:new Date().toISOString(), payments:payments}, null, 2);
+  fetch("https://www.googleapis.com/drive/v3/files?q=name%3D'odeme-yedek.json'%20and%20trashed%3Dfalse&spaces=appDataFolder", {
+    headers:{'Authorization':'Bearer ' + token}
+  }).then(function(r) { return r.json(); }).then(function(res) {
+    var existingId = res.files && res.files.length > 0 ? res.files[0].id : null;
+    var url = existingId
+      ? 'https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=multipart'
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    var method = existingId ? 'PATCH' : 'POST';
+    var meta = {name:'odeme-yedek.json', mimeType:'application/json'};
+    if (!existingId) meta.parents = ['appDataFolder'];
+    var form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(meta)], {type:'application/json'}));
+    form.append('file', new Blob([data], {type:'application/json'}));
+    return fetch(url, {method:method, headers:{'Authorization':'Bearer ' + token}, body:form});
+  }).then(function(r) { return r.json(); }).then(function() {
+    var now = new Date().toLocaleString('tr-TR');
+    localStorage.setItem('last-backup', now);
+    updateDriveStatus();
+    toast('Drive a yedeklendi: ' + now);
+  }).catch(function() { toast('Drive yukleme hatasi'); });
+}
+
+function restoreFromDrive(token) {
+  toast('Drive dan araniyor...');
+  fetch("https://www.googleapis.com/drive/v3/files?q=name%3D'odeme-yedek.json'%20and%20trashed%3Dfalse&spaces=appDataFolder", {
+    headers:{'Authorization':'Bearer ' + token}
+  }).then(function(r) { return r.json(); }).then(function(res) {
+    if (!res.files || res.files.length === 0) { toast('Drive da yedek bulunamadi'); return Promise.resolve(null); }
+    return fetch('https://www.googleapis.com/drive/v3/files/' + res.files[0].id + '?alt=media', {
       headers:{'Authorization':'Bearer ' + token}
-    }).then(function(r) { return r.json(); }).then(function(data) {
-      if (!data.files || data.files.length === 0) { toast('Drive\'da yedek bulunamadı'); return; }
-      var fileId = data.files[0].id;
-      return fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
-        headers:{'Authorization':'Bearer ' + token}
-      });
-    }).then(function(r) { return r.json(); }).then(function(data) {
-      var imported = data.payments || data;
-      if (!Array.isArray(imported)) throw new Error();
-      showConfirm(imported.length + ' ödeme yüklenecek. Mevcut veriler silinecek.', 'Yükle', function() {
-        payments = imported; persist(); render(); closeDrive();
-        toast(imported.length + ' ödeme Drive\'dan yüklendi');
-      });
-    }).catch(function() { toast('Drive geri yükleme hatası'); });
-  });
+    });
+  }).then(function(r) {
+    if (!r) return null;
+    return r.json();
+  }).then(function(data) {
+    if (!data) return;
+    var imported = data.payments || data;
+    if (!Array.isArray(imported)) throw new Error('Gecersiz format');
+    showConfirm(imported.length + ' odeme Drive dan yuklenecek. Mevcut veriler silinecek.', 'Yukle', function() {
+      payments = imported; persist(); render(); closeDrive();
+      toast(imported.length + ' odeme yuklendi');
+    });
+  }).catch(function() { driveToken = null; toast('Drive hatasi — tekrar deneyin'); });
 }
 
 function driveAuth(cb) {
   if (driveToken) { cb(driveToken); return; }
   var redirectUri = location.origin + location.pathname;
+  var scope = 'https://www.googleapis.com/auth/drive.appdata';
   var authUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
-    + '?client_id=' + DRIVE_CLIENT_ID
+    + '?client_id=' + encodeURIComponent(DRIVE_CLIENT_ID)
     + '&redirect_uri=' + encodeURIComponent(redirectUri)
     + '&response_type=token'
-    + '&scope=' + encodeURIComponent('https://www.googleapis.com/auth/drive.appdata');
-  var w = window.open(authUrl, '_blank', 'width=500,height=600');
+    + '&scope=' + encodeURIComponent(scope);
+  var popup = window.open(authUrl, 'driveAuth', 'width=520,height=620');
+  if (!popup) { toast('Popup engellendi - tarayici ayarlarindan izin verin'); return; }
   var timer = setInterval(function() {
     try {
-      var hash = w.location.hash;
+      var hash = popup.location.hash;
       if (hash && hash.indexOf('access_token') >= 0) {
         clearInterval(timer);
-        w.close();
-        var token = hash.match(/access_token=([^&]+)/);
-        if (token) { driveToken = token[1]; cb(driveToken); }
+        popup.close();
+        var m = hash.match(/access_token=([^&]+)/);
+        if (m) { driveToken = m[1]; cb(driveToken); }
       }
     } catch(e) {}
   }, 500);
+  setTimeout(function() { clearInterval(timer); }, 120000);
 }
 
 function showConfirm(msg, okLabel, cb) {
@@ -1281,7 +1445,7 @@ function downloadExcel() {
 
 
 // ── Versiyon kontrolü — eski cache varsa temizle ve yenile ──
-var APP_VERSION = '2025-06-29-v9';
+var APP_VERSION = '2025-06-29-v10';
 var storedVersion = localStorage.getItem('app-version');
 if (storedVersion && storedVersion !== APP_VERSION) {
   // Yeni versiyon gelmiş — cache temizle ve yenile
