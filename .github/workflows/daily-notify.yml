@@ -1,0 +1,18 @@
+name: Günlük Ödeme Bildirimleri
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Bildirimleri gönder
+        env:
+          FIREBASE_SERVER_KEY: ${{ secrets.FIREBASE_SERVER_KEY }}
+          FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SA_JSON }}
+        run: node notify.js
