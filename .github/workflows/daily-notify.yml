@@ -13,6 +13,5 @@ jobs:
           node-version: '20'
       - name: Bildirimleri gönder
         env:
-          FIREBASE_SERVER_KEY: ${{ secrets.FIREBASE_SERVER_KEY }}
           FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SA_JSON }}
         run: node notify.js
