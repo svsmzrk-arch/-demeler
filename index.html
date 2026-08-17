@@ -1444,8 +1444,94 @@ function downloadExcel() {
 
 
 
+
+// ── Firebase FCM ──────────────────────────────────────────
+var FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAFPhb4LmtKyQZcog0lubAgxmGrjywrRj4",
+  authDomain: "odeme-takip-b7c1f.firebaseapp.com",
+  projectId: "odeme-takip-b7c1f",
+  storageBucket: "odeme-takip-b7c1f.firebasestorage.app",
+  messagingSenderId: "179050084056",
+  appId: "1:179050084056:web:2ef5a69bab382555a3c9ad"
+};
+var VAPID_KEY = "BPr4uakCwltFgXl7hZ-3mcT6_jnIhYprl5eURy_pMJix7x_GTWcy23s0Nh4cTIpArMN4_mYvvPnmihqmSUZZdTE";
+
+// Dinamik Firebase SDK yükle
+function loadFirebase(cb) {
+  if (window.firebase) { cb(); return; }
+  var s1 = document.createElement('script');
+  s1.src = 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js';
+  s1.onload = function() {
+    var s2 = document.createElement('script');
+    s2.src = 'https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js';
+    s2.onload = function() {
+      var s3 = document.createElement('script');
+      s3.src = 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js';
+      s3.onload = function() {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        cb();
+      };
+      document.head.appendChild(s3);
+    };
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s1);
+}
+
+function initFCM() {
+  loadFirebase(function() {
+    var messaging = firebase.messaging();
+    messaging.getToken({
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: null
+    }).then(function(token) {
+      if (token) {
+        console.log('FCM token alındı');
+        localStorage.setItem('fcm-token', token);
+        saveToFirestore(token);
+      }
+    }).catch(function(e) {
+      console.log('FCM token hatası:', e.message);
+    });
+
+    // Ön planda gelen bildirimleri toast ile göster
+    messaging.onMessage(function(payload) {
+      var title = payload.notification && payload.notification.title || 'Ödeme';
+      var body = payload.notification && payload.notification.body || '';
+      toast(title + ': ' + body);
+    });
+  });
+}
+
+function saveToFirestore(fcmToken) {
+  loadFirebase(function() {
+    if (!firebase.apps || firebase.apps.length === 0) return;
+    var db = firebase.firestore();
+    // Kullanıcı ID olarak FCM token hash kullan
+    var userId = fcmToken.slice(-20);
+    db.collection('users').doc(userId).set({
+      fcmToken: fcmToken,
+      payments: JSON.stringify(payments),
+      updatedAt: new Date().toISOString()
+    }).then(function() {
+      console.log('Firestore a kaydedildi');
+    }).catch(function(e) {
+      console.log('Firestore hatası:', e.message);
+    });
+  });
+}
+
+// persist() fonksiyonunu Firestore sync ile genişlet
+var _persistOrig2 = persist;
+persist = function() {
+  _persistOrig2();
+  // FCM token varsa Firestore a da kaydet
+  var token = localStorage.getItem('fcm-token');
+  if (token) saveToFirestore(token);
+};
+
 // ── Versiyon kontrolü — eski cache varsa temizle ve yenile ──
-var APP_VERSION = '2025-06-29-v10';
+var APP_VERSION = '2025-06-29-v11';
 var storedVersion = localStorage.getItem('app-version');
 if (storedVersion && storedVersion !== APP_VERSION) {
   // Yeni versiyon gelmiş — cache temizle ve yenile
@@ -1521,11 +1607,12 @@ function requestNotifPermission() {
     notifPermission = result;
     if (result === 'granted') {
       toast('Bildirimler açıldı! Her gün saat 09:00\'da hatırlatacak 🔔');
-      // Tell SW to schedule
+      // Firebase FCM token al
+      initFCM();
+      // SW schedule
       if (navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({type: 'SCHEDULE'});
       }
-      // Immediate check
       checkNotificationsNow();
       renderNotifBanner();
     } else {
@@ -1600,6 +1687,8 @@ injectNotifBanner();
 // Check notifications on app open (if permission already granted)
 if ('Notification' in window && Notification.permission === 'granted') {
   setTimeout(checkNotificationsNow, 2000);
+  // FCM token yenile
+  setTimeout(initFCM, 3000);
 }
 
 </script>

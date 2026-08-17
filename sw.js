@@ -1,5 +1,5 @@
-var CACHE = 'odeme-v11';
-var STORAGE_KEY = 'odeme-v11';
+var CACHE = 'odeme-v12';
+var STORAGE_KEY = 'odeme-v12';
 
 // ── Install ──────────────────────────────────────────────
 self.addEventListener('install', function(e) {
