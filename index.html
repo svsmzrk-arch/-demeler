@@ -1540,7 +1540,7 @@ persist = function() {
 };
 
 // ── Versiyon kontrolü — eski cache varsa temizle ve yenile ──
-var APP_VERSION = '2025-06-29-v12';
+var APP_VERSION = '2025-06-29-v13';
 var storedVersion = localStorage.getItem('app-version');
 if (storedVersion && storedVersion !== APP_VERSION) {
   // Yeni versiyon gelmiş — cache temizle ve yenile
@@ -1692,6 +1692,10 @@ load();
 syncToIDB();
 render();
 injectNotifBanner();
+
+// Global olarak eriş (test için)
+window.initFCM = initFCM;
+window.saveToFirestore = saveToFirestore;
 
 // Check notifications on app open (if permission already granted)
 if ('Notification' in window && Notification.permission === 'granted') {
