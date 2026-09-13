@@ -1540,7 +1540,7 @@ persist = function() {
 };
 
 // ── Versiyon kontrolü — eski cache varsa temizle ve yenile ──
-var APP_VERSION = '2025-06-29-v13';
+var APP_VERSION = '2025-06-29-v14';
 var storedVersion = localStorage.getItem('app-version');
 if (storedVersion && storedVersion !== APP_VERSION) {
   // Yeni versiyon gelmiş — cache temizle ve yenile
@@ -1700,8 +1700,18 @@ window.saveToFirestore = saveToFirestore;
 // Check notifications on app open (if permission already granted)
 if ('Notification' in window && Notification.permission === 'granted') {
   setTimeout(checkNotificationsNow, 2000);
-  // FCM token yenile
-  setTimeout(initFCM, 3000);
+  // FCM token al — her açılışta kontrol et
+  setTimeout(function() {
+    var existingToken = localStorage.getItem('fcm-token');
+    if (!existingToken) {
+      console.log('FCM token yok, alınıyor...');
+      initFCM();
+    } else {
+      // Token var ama Firestore'da olmayabilir, yenile
+      console.log('FCM token mevcut, Firestore yenileniyor...');
+      initFCM();
+    }
+  }, 2000);
 }
 
 </script>
