@@ -1482,7 +1482,7 @@ function initFCM() {
   if (!('serviceWorker' in navigator)) return;
   loadFirebase(function() {
     // Önce firebase-messaging-sw.js'i kaydet
-    navigator.serviceWorker.register('./firebase-messaging-sw.js', {scope: './'})
+    navigator.serviceWorker.register('./sw.js')
       .then(function(swReg) {
         console.log('Firebase SW kayıt OK');
         var messaging = firebase.messaging();
@@ -1540,7 +1540,7 @@ persist = function() {
 };
 
 // ── Versiyon kontrolü — eski cache varsa temizle ve yenile ──
-var APP_VERSION = '2025-06-29-v14';
+var APP_VERSION = '2025-06-29-v15';
 var storedVersion = localStorage.getItem('app-version');
 if (storedVersion && storedVersion !== APP_VERSION) {
   // Yeni versiyon gelmiş — cache temizle ve yenile
