@@ -1479,26 +1479,35 @@ function loadFirebase(cb) {
 }
 
 function initFCM() {
+  if (!('serviceWorker' in navigator)) return;
   loadFirebase(function() {
-    var messaging = firebase.messaging();
-    messaging.getToken({
-      vapidKey: VAPID_KEY,
-      serviceWorkerRegistration: null
-    }).then(function(token) {
-      if (token) {
-        console.log('FCM token alındı');
-        localStorage.setItem('fcm-token', token);
-        saveToFirestore(token);
-      }
-    }).catch(function(e) {
-      console.log('FCM token hatası:', e.message);
-    });
+    // Önce firebase-messaging-sw.js'i kaydet
+    navigator.serviceWorker.register('./firebase-messaging-sw.js', {scope: './'})
+      .then(function(swReg) {
+        console.log('Firebase SW kayıt OK');
+        var messaging = firebase.messaging();
+        return messaging.getToken({
+          vapidKey: VAPID_KEY,
+          serviceWorkerRegistration: swReg
+        });
+      }).then(function(token) {
+        if (token) {
+          console.log('FCM token alındı:', token.slice(0,20) + '...');
+          localStorage.setItem('fcm-token', token);
+          saveToFirestore(token);
+        } else {
+          console.log('FCM token boş — bildirim izni yok olabilir');
+        }
+      }).catch(function(e) {
+        console.log('FCM hatası:', e.message);
+      });
 
     // Ön planda gelen bildirimleri toast ile göster
-    messaging.onMessage(function(payload) {
+    var messaging2 = firebase.messaging();
+    messaging2.onMessage(function(payload) {
       var title = payload.notification && payload.notification.title || 'Ödeme';
-      var body = payload.notification && payload.notification.body || '';
-      toast(title + ': ' + body);
+      var body2 = payload.notification && payload.notification.body || '';
+      toast(title + ': ' + body2);
     });
   });
 }
@@ -1531,7 +1540,7 @@ persist = function() {
 };
 
 // ── Versiyon kontrolü — eski cache varsa temizle ve yenile ──
-var APP_VERSION = '2025-06-29-v11';
+var APP_VERSION = '2025-06-29-v12';
 var storedVersion = localStorage.getItem('app-version');
 if (storedVersion && storedVersion !== APP_VERSION) {
   // Yeni versiyon gelmiş — cache temizle ve yenile

@@ -1,5 +1,5 @@
-var CACHE = 'odeme-v12';
-var STORAGE_KEY = 'odeme-v12';
+var CACHE = 'odeme-v13';
+var STORAGE_KEY = 'odeme-v13';
 
 // ── Install ──────────────────────────────────────────────
 self.addEventListener('install', function(e) {
@@ -28,11 +28,17 @@ self.addEventListener('activate', function(e) {
 
 // ── Fetch (offline support) ───────────────────────────────
 self.addEventListener('fetch', function(e) {
+  // chrome-extension ve data URL'lerini atla
+  if (!e.request.url.startsWith('http')) return;
+
   e.respondWith(
     caches.match(e.request).then(function(r) {
       return r || fetch(e.request).then(function(res) {
-        var clone = res.clone();
-        caches.open(CACHE).then(function(c){ c.put(e.request, clone); });
+        // Sadece başarılı HTTP yanıtlarını cache'le
+        if (res.status === 200 && e.request.url.startsWith('https://')) {
+          var clone = res.clone();
+          caches.open(CACHE).then(function(c){ c.put(e.request, clone); });
+        }
         return res;
       }).catch(function() {
         return caches.match('./index.html');
