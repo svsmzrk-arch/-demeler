@@ -1,7 +1,7 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 
-var CACHE = 'odeme-v16';
+var CACHE = 'odeme-v17';
 
 // Firebase başlat
 firebase.initializeApp({
@@ -17,15 +17,17 @@ var messaging = firebase.messaging();
 
 // Arka plan bildirimi
 messaging.onBackgroundMessage(function(payload) {
-  var title = (payload.notification && payload.notification.title) || 'Ödeme Hatırlatma';
-  var body = (payload.notification && payload.notification.body) || '';
+  var d = payload.data || {};
+  var title = d.title || 'Ödeme Hatırlatma';
+  var body = d.body || '';
   var options = {
     body: body,
     icon: './icon.svg',
     badge: './icon.svg',
     vibrate: [200, 100, 200],
-    tag: (payload.data && payload.data.tag) || 'odeme',
-    requireInteraction: payload.data && payload.data.urgent === 'true',
+    tag: d.tag || 'odeme',
+    renotify: false,
+    requireInteraction: d.urgent === 'true',
     data: {url: './'}
   };
   return self.registration.showNotification(title, options);

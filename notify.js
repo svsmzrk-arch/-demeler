@@ -69,8 +69,12 @@ async function getUsers(token) {
 }
 
 function checkPayments(payments) {
-  const now = new Date(); now.setHours(0,0,0,0);
+  // Türkiye saatine göre bugün (runner UTC çalışır)
+  const tr = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Istanbul'}));
+  const now = new Date(tr.getFullYear(), tr.getMonth(), tr.getDate());
   const yr = now.getFullYear(), mo = now.getMonth();
+  // Key format: "YYYY-M" (0-indexed month, no leading zero) — matches app
+  const pkey = yr + '-' + mo;
   const overdue = [], today = [], soon = [];
 
   (payments || []).forEach(p => {
@@ -86,11 +90,18 @@ function checkPayments(payments) {
       }
     }
     if (!dueDate) return;
-    const pkey = yr + '-' + mo;
-    if (p.paidMonths && p.paidMonths[pkey]) return;
-    if (Array.isArray(p.deletedMonths) && p.deletedMonths.includes(pkey)) return;
+
+    // Check paid — paidMonths can be object or Firestore map
+    const pm = p.paidMonths || {};
+    if (pm[pkey] === true || pm[pkey] === 'true' || pm[pkey] === 1) return;
+
+    // Check deleted
+    const dm = p.deletedMonths || [];
+    if (Array.isArray(dm) && dm.includes(pkey)) return;
+
     dueDate.setHours(0,0,0,0);
     const diff = Math.round((dueDate - now) / 86400000);
+    console.log('  ' + p.name + ': diff=' + diff + ' pkey=' + pkey + ' paid=' + JSON.stringify(pm[pkey]));
     if (diff < 0) overdue.push({name: p.name, diff});
     else if (diff === 0) today.push({name: p.name});
     else if (diff <= 3) soon.push({name: p.name, diff});
@@ -103,10 +114,9 @@ async function sendFCM(accessToken, fcmToken, title, body, urgent) {
   const message = {
     message: {
       token: fcmToken,
-      notification: {title, body},
+      data: {title: title, body: body, tag: 'odeme', urgent: urgent ? 'true' : 'false'},
       android: {
-        priority: urgent ? 'high' : 'normal',
-        notification: {sound: 'default'}
+        priority: 'high'
       }
     }
   };
@@ -171,9 +181,24 @@ async function main() {
 
   const users = await getUsers(token);
   console.log(users.length + ' kullanıcı bulundu');
+  users.forEach((doc, i) => {
+    const f = doc.fields || {};
+    const tok = f.fcmToken && f.fcmToken.stringValue;
+    const upd = f.updatedAt && f.updatedAt.stringValue;
+    console.log('  Kullanıcı ' + (i+1) + ': token=' + (tok ? tok.slice(0,15)+'...' : 'YOK') + ' güncelleme=' + upd);
+  });
+
+  const newest = {};
+  users.forEach(doc => {
+    const f = doc.fields || {};
+    const t = f.fcmToken && f.fcmToken.stringValue;
+    const u = (f.updatedAt && f.updatedAt.stringValue) || '';
+    if (t && (!newest[t] || u > newest[t].u)) newest[t] = {doc, u};
+  });
+  const uniqueDocs = Object.values(newest).map(x => x.doc);
 
   let sent = 0;
-  for (const doc of users) {
+  for (const doc of uniqueDocs) {
     const f = doc.fields || {};
     const fcmToken = f.fcmToken && f.fcmToken.stringValue;
     const paymentsStr = f.payments && f.payments.stringValue;
