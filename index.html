@@ -1457,25 +1457,29 @@ var FIREBASE_CONFIG = {
 var VAPID_KEY = "BPr4uakCwltFgXl7hZ-3mcT6_jnIhYprl5eURy_pMJix7x_GTWcy23s0Nh4cTIpArMN4_mYvvPnmihqmSUZZdTE";
 
 // Dinamik Firebase SDK yükle
+var _fbReady = false, _fbLoading = false, _fbQueue = [];
 function loadFirebase(cb) {
-  if (window.firebase) { cb(); return; }
-  var s1 = document.createElement('script');
-  s1.src = 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js';
-  s1.onload = function() {
-    var s2 = document.createElement('script');
-    s2.src = 'https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js';
-    s2.onload = function() {
-      var s3 = document.createElement('script');
-      s3.src = 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js';
-      s3.onload = function() {
-        firebase.initializeApp(FIREBASE_CONFIG);
-        cb();
-      };
-      document.head.appendChild(s3);
-    };
-    document.head.appendChild(s2);
-  };
-  document.head.appendChild(s1);
+  if (_fbReady) { cb(); return; }
+  _fbQueue.push(cb);
+  if (_fbLoading) return;
+  _fbLoading = true;
+  function load(src, next) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = next;
+    s.onerror = function() { _fbLoading = false; console.log('Firebase yüklenemedi: ' + src); };
+    document.head.appendChild(s);
+  }
+  load('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js', function() {
+    load('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js', function() {
+      load('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js', function() {
+        if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+        _fbReady = true;
+        var q = _fbQueue; _fbQueue = [];
+        q.forEach(function(f) { try { f(); } catch(e) { console.log(e.message); } });
+      });
+    });
+  });
 }
 
 function initFCM() {
@@ -1540,7 +1544,7 @@ persist = function() {
 };
 
 // ── Versiyon kontrolü — eski cache varsa temizle ve yenile ──
-var APP_VERSION = '2025-06-29-v17';
+var APP_VERSION = '2025-06-29-v18';
 var storedVersion = localStorage.getItem('app-version');
 if (storedVersion && storedVersion !== APP_VERSION) {
   // Yeni versiyon gelmiş — cache temizle ve yenile

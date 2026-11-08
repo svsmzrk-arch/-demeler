@@ -1,7 +1,7 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 
-var CACHE = 'odeme-v17';
+var CACHE = 'odeme-v18';
 
 // Firebase başlat
 firebase.initializeApp({
